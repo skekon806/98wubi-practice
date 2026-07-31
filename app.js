@@ -3,10 +3,12 @@ const MODES = [
   { key: 'jm1', name: '一级简码', sub: '25字 · 单键', explain: false, data: window.WUBI_DATA['jm1'] },
   { key: 'jm2', name: '二级简码', sub: '611字 · 两键', explain: true, data: window.WUBI_DATA['jm2'] },
   { key: 'jm3', name: '三级简码', sub: '668字 · 三键', explain: true, data: window.WUBI_DATA['jm3'] },
-  { key: 'root', name: '字根练习', sub: '键名+字根', explain: false, data: window.WUBI_DATA['root'] },
+  { key: 'root', name: '字根练习', sub: '键名+字根', explain: false, root: true, data: window.WUBI_DATA['root'] },
 ];
 
+// 复习间隔（单位：题，1组=5题）：2组 → 5组 → 10组 → 20组 → 40组 → 80组
 const INTERVALS = [10, 25, 50, 100, 200, 400];
+
 const REGIONS = {
   'G':'横区','F':'横区','D':'横区','S':'横区','A':'横区',
   'H':'竖区','J':'竖区','K':'竖区','L':'竖区','M':'竖区',
@@ -19,14 +21,18 @@ const SAVE_KEY = 'wubi98_';
 let modeIdx = 0;
 let DATA = MODES[0].data;
 let state = null;
-let currentCard = null;
+let current = null; // { card, fromReview, final } 当前题的上下文
 let isRetry = false;
 
 function shuffle(a) {
-  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
   return a;
 }
 
+// ---------- 存档 ----------
 function saveState() {
   localStorage.setItem(SAVE_KEY + modeIdx, JSON.stringify(state));
 }
@@ -45,38 +51,57 @@ function freshState() {
   return { queue: shuffle([...DATA]), cards: {}, pos: 0, correct: 0, wrong: 0 };
 }
 
+function ensureSchedule(v) {
+  let c = state.cards[v];
+  if (!c) c = state.cards[v] = { level: 0, nextAt: 0 };
+  return c;
+}
+
 function startLevel() {
+  DATA.forEach(c => ensureSchedule(c.v));
+}
+
+// ---------- 复习调度 ----------
+// state.pos = 已完成的题数；卡片答完后 nextAt = pos + INTERVALS[level]
+// 到期判断：nextAt <= pos（即过了 N 题后复现）
+
+function scheduledReviews() {
+  const list = [];
   DATA.forEach(c => {
-    if (!state.cards[c.v]) state.cards[c.v] = { level: 0, nextAt: 0 };
+    const s = state.cards[c.v];
+    if (s && s.nextAt > 0) list.push({ card: c, nextAt: s.nextAt, level: s.level });
   });
+  list.sort((a, b) => a.nextAt - b.nextAt);
+  return list;
 }
 
 function dueReviews() {
-  return DATA.filter(c => state.cards[c.v] && state.cards[c.v].nextAt > 0 && state.cards[c.v].nextAt <= state.pos)
-             .sort((a, b) => state.cards[a.v].nextAt - state.cards[b.v].nextAt);
+  return scheduledReviews().filter(r => r.nextAt <= state.pos);
 }
 
 function pendingReviews() {
-  return DATA.filter(c => state.cards[c.v] && state.cards[c.v].nextAt > 0);
+  return scheduledReviews().length;
 }
 
 function getNextCard() {
+  // 1) 到期的复习优先
   const due = dueReviews();
-  if (due.length > 0) {
-    const card = due[0];
-    card._fromReview = true;
-    card._level = state.cards[card.v].level;
-    return card;
-  }
-  if (state.queue.length > 0) {
+  if (due.length) return { card: due[0].card, fromReview: true, final: false };
+
+  // 2) 新卡
+  if (state.queue.length) {
     const card = state.queue.shift();
-    delete card._fromReview;
-    delete card._level;
-    return card;
+    return { card, fromReview: false, final: false };
   }
+
+  // 3) 新卡练完 → 进入复习阶段，按到期顺序把剩余复习走完（final：答完即清，不再排期）
+  const rest = scheduledReviews();
+  if (rest.length) return { card: rest[0].card, fromReview: true, final: true };
+
   return null;
 }
 
+// ---------- 菜单与模式 ----------
 function buildMenu() {
   const menu = document.getElementById('menu');
   let h = '';
@@ -123,26 +148,25 @@ function resetProgress() {
   }
 }
 
+// ---------- 出题 ----------
 function showCurrent() {
-  currentCard = getNextCard();
-  if (!currentCard) { endGame(); return; }
-  const card = currentCard;
-  state.pos++;
-
+  current = getNextCard();
+  if (!current) { endGame(); return; }
+  const card = current.card;
   const m = MODES[modeIdx];
+  const isRoot = !!m.root;
+
   document.getElementById('modeTitle').textContent = m.name + ' · ' + m.sub;
 
-  const isRoot = modeIdx === 4;
-  document.getElementById('charDisplay').style.display = 'block';
+  const cd = document.getElementById('charDisplay');
+  cd.style.display = 'block';
   document.getElementById('rootDisplay').style.display = 'none';
-  document.getElementById('charDisplay').textContent = card.v;
-  document.getElementById('charDisplay').className = isRoot ? 'char-display root-char' : 'char-display';
+  cd.textContent = card.v;
+  cd.className = isRoot ? 'char-display root-char' : 'char-display';
 
-  const doneNew = m.data.length - state.queue.length;
-  document.getElementById('progress').textContent = '剩余 ' + state.queue.length + ' · 已学 ' + doneNew + ' / ' + m.data.length;
-  document.getElementById('reviewBadge').textContent = '待复习: ' + pendingReviews().length;
-  document.getElementById('hintText').textContent = card._fromReview
-    ? '复习 (' + card._level + '/6) · 输入' + (isRoot ? '键位' : '编码 ' + card.a.length + '键')
+  updateProgress();
+  document.getElementById('hintText').textContent = current.fromReview
+    ? '复习 (' + state.cards[card.v].level + '/' + INTERVALS.length + ') · 输入' + (isRoot ? '键位' : '编码 ' + card.a.length + '键')
     : isRoot ? '输入对应的字母键' : '输入编码（' + card.a.length + '个键）';
 
   const fb = document.getElementById('feedback');
@@ -184,30 +208,39 @@ function buildInputs(n, isRoot) {
   if (boxes.length > 0) boxes[0].focus();
 }
 
+// ---------- 判题 ----------
 function checkAnswer() {
-  const card = currentCard;
-  if (!card) return;
-  const isRoot = modeIdx === 4;
+  if (!current) return;
+  const { card, fromReview, final } = current;
+  const isRoot = !!MODES[modeIdx].root;
 
   const boxes = document.querySelectorAll('.code-box');
   let typed = '';
   boxes.forEach(b => typed += b.value);
-  typed = isRoot ? typed.toUpperCase() : typed.toLowerCase();
+  typed = typed.toLowerCase();
 
-  if (typed === card.a) {
-    const st = state.cards[card.v];
-    if (card._fromReview) {
+  if (typed === card.a.toLowerCase()) {
+    const st = ensureSchedule(card.v);
+    if (fromReview && final) {
+      // 复习阶段：答完即清，不再排期
+      if (!isRetry) state.correct++;
+      st.level = 0;
+      st.nextAt = 0;
+    } else if (fromReview) {
       // 到期复习答对：间隔升级（2组→5组→10组→20组→40组→80组）
       st.level = Math.min(st.level + 1, INTERVALS.length - 1);
       st.nextAt = state.pos + INTERVALS[st.level];
       state.correct++;
     } else if (!isRetry) {
-      // 新卡首次答对：不进入复习
+      // 新卡首答：无论对错都进入复习曲线（答错时的安排已在出错分支写入）
       state.correct++;
-      st.level = 0;
-      st.nextAt = 0;
+      if (!st.nextAt) {
+        st.level = 0;
+        st.nextAt = state.pos + INTERVALS[0];
+      }
     }
-    // 答错后的重打答对：不改变复习计划，等待已排定的复习
+    // 答错后的重打答对：不改变复习安排
+
     const fb = document.getElementById('feedback');
     fb.className = 'feedback';
     fb.style.display = 'none';
@@ -218,9 +251,11 @@ function checkAnswer() {
   } else {
     if (!isRetry) {
       state.wrong++;
-      const st = state.cards[card.v];
-      st.level = 0;
-      st.nextAt = state.pos + INTERVALS[0];
+      if (!final) {
+        const st = ensureSchedule(card.v);
+        st.level = 0;
+        st.nextAt = state.pos + INTERVALS[0];
+      }
       isRetry = true;
     }
     boxes.forEach((b, i) => {
@@ -233,9 +268,9 @@ function checkAnswer() {
     fb.style.display = 'block';
     let fh = '';
     if (isRoot) {
-      fh = '<div class="key-hint">' + card.a + ' 键</div>' +
-           '<div class="region-tag">' + (REGIONS[card.a] || '') + '</div>' +
-           '<div style="color:#888;font-size:13px;margin-top:8px">输入 ' + card.a + ' 继续</div>';
+      fh = '<div class="key-hint">' + card.a.toUpperCase() + ' 键</div>' +
+           '<div class="region-tag">' + (REGIONS[card.a.toUpperCase()] || '') + '</div>' +
+           '<div style="color:#888;font-size:13px;margin-top:8px">输入 ' + card.a.toUpperCase() + ' 继续</div>';
     } else {
       fh = '<div style="font-size:15px;margin-bottom:6px;color:#dc2626">编码错误</div>' +
            '<div style="font-size:15px;color:#4f6cf7">正确: <strong>' + card.a + '</strong>';
@@ -244,7 +279,7 @@ function checkAnswer() {
       if (MODES[modeIdx].explain && card.s && card.s.length) {
         fh += '<div class="root-chars">' + card.s.map(x => '<span>' + x + '</span>').join('') + '</div>';
       }
-      if (MODES[modeIdx].explain) fh += '<div style="color:#888;font-size:13px;margin-top:6px">照着上面输入正确编码</div>';
+      fh += '<div style="color:#888;font-size:13px;margin-top:6px">照着上面输入正确编码</div>';
     }
     fb.innerHTML = fh;
     updateStats();
@@ -252,12 +287,27 @@ function checkAnswer() {
   }
 }
 
-function advance() { showCurrent(); }
+function advance() {
+  state.pos++;
+  showCurrent();
+}
+
+// ---------- 信息 ----------
+function updateProgress() {
+  const m = MODES[modeIdx];
+  const total = m.data.length;
+  const p = document.getElementById('progress');
+  if (state.queue.length === 0 && pendingReviews() > 0) {
+    p.textContent = '复习阶段 · 剩余 ' + pendingReviews() + ' 道复习';
+  } else {
+    p.textContent = '剩余 ' + state.queue.length + ' · 已学 ' + (total - state.queue.length) + ' / ' + total;
+  }
+}
 
 function updateStats() {
   document.getElementById('correctCount').textContent = state.correct;
   document.getElementById('wrongCount').textContent = state.wrong;
-  document.getElementById('reviewBadge').textContent = '待复习: ' + pendingReviews().length;
+  document.getElementById('reviewBadge').textContent = '待复习: ' + dueReviews().length;
 }
 
 function endGame() {
@@ -267,7 +317,8 @@ function endGame() {
   document.getElementById('rootDisplay').style.display = 'none';
   document.getElementById('codeInputs').style.display = 'none';
   document.getElementById('feedback').style.display = 'none';
-  document.getElementById('hintText').textContent = '共 ' + state.pos + ' 题 · 正确 ' + state.correct + ' 错误 ' + state.wrong;
+  document.getElementById('hintText').innerHTML = '共 ' + state.pos + ' 题 · 正确 ' + state.correct + ' 错误 ' + state.wrong +
+    ' &nbsp; <button onclick="resetProgress()" style="padding:4px 12px;border:1px solid #d0d5dd;border-radius:8px;background:#fff;color:#4f6cf7;cursor:pointer;font-size:13px">再来一轮</button>';
 }
 
 (function init() {
