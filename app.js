@@ -1,9 +1,9 @@
 const MODES = [
-  { key: 'encode', name: '编码练习', sub: '常用1500字', explain: true, data: window.WUBI_DATA['encode'] },
+  { key: 'root', name: '码元练习', sub: '键名+码元', explain: false, root: true, data: window.WUBI_DATA['root'] },
   { key: 'jm1', name: '一级简码', sub: '25字 · 单键', explain: false, data: window.WUBI_DATA['jm1'] },
   { key: 'jm2', name: '二级简码', sub: '611字 · 两键', explain: true, data: window.WUBI_DATA['jm2'] },
   { key: 'jm3', name: '三级简码', sub: '668字 · 三键', explain: true, data: window.WUBI_DATA['jm3'] },
-  { key: 'root', name: '字根练习', sub: '键名+字根', explain: false, root: true, data: window.WUBI_DATA['root'] },
+  { key: 'encode', name: '编码练习', sub: '常用1500字', explain: true, data: window.WUBI_DATA['encode'] },
 ];
 
 // 复习间隔（单位：题，1组=5题）：2组 → 5组 → 10组 → 20组 → 40组 → 80组
@@ -34,12 +34,12 @@ function shuffle(a) {
 
 // ---------- 存档 ----------
 function saveState() {
-  localStorage.setItem(SAVE_KEY + modeIdx, JSON.stringify(state));
+  localStorage.setItem(SAVE_KEY + MODES[modeIdx].key, JSON.stringify(state));
 }
 
 function loadState() {
   try {
-    const raw = localStorage.getItem(SAVE_KEY + modeIdx);
+    const raw = localStorage.getItem(SAVE_KEY + MODES[modeIdx].key);
     if (!raw) return null;
     const s = JSON.parse(raw);
     if (!s || !s.queue || !s.cards) return null;
@@ -141,7 +141,7 @@ function switchMode(newIdx) {
 
 function resetProgress() {
   if (confirm('确定重置「' + MODES[modeIdx].name + '」的进度吗？')) {
-    localStorage.removeItem(SAVE_KEY + modeIdx);
+    localStorage.removeItem(SAVE_KEY + MODES[modeIdx].key);
     state = freshState();
     startLevel();
     showCurrent();
@@ -313,7 +313,7 @@ function updateStats() {
 }
 
 function endGame() {
-  localStorage.removeItem(SAVE_KEY + modeIdx);
+  localStorage.removeItem(SAVE_KEY + MODES[modeIdx].key);
   document.getElementById('charDisplay').innerHTML = '🎉 完成!';
   document.getElementById('charDisplay').style.display = 'block';
   document.getElementById('rootDisplay').style.display = 'none';
