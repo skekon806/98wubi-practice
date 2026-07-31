@@ -193,6 +193,7 @@ function buildInputs(n, isRoot) {
   const boxes = document.querySelectorAll('.code-box');
   boxes.forEach((box, i, arr) => {
     box.addEventListener('input', function() {
+      this.value = this.value.toLowerCase();
       this.className = 'code-box' + (isRoot ? ' single filled' : ' filled');
       if (this.value && i < arr.length - 1) arr[i + 1].focus();
       if (this.value && i === arr.length - 1) setTimeout(checkAnswer, 80);
@@ -247,7 +248,8 @@ function checkAnswer() {
     boxes.forEach(b => b.className = 'code-box correct');
     updateStats();
     saveState();
-    setTimeout(advance, 300);
+    const ctx = current;
+    setTimeout(() => { if (current === ctx) advance(); }, 300);
   } else {
     if (!isRetry) {
       state.wrong++;
@@ -268,9 +270,9 @@ function checkAnswer() {
     fb.style.display = 'block';
     let fh = '';
     if (isRoot) {
-      fh = '<div class="key-hint">' + card.a.toUpperCase() + ' 键</div>' +
+      fh = '<div class="key-hint">' + card.a + ' 键</div>' +
            '<div class="region-tag">' + (REGIONS[card.a.toUpperCase()] || '') + '</div>' +
-           '<div style="color:#888;font-size:13px;margin-top:8px">输入 ' + card.a.toUpperCase() + ' 继续</div>';
+           '<div style="color:#888;font-size:13px;margin-top:8px">输入 ' + card.a + ' 继续</div>';
     } else {
       fh = '<div style="font-size:15px;margin-bottom:6px;color:#dc2626">编码错误</div>' +
            '<div style="font-size:15px;color:#4f6cf7">正确: <strong>' + card.a + '</strong>';
