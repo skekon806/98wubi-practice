@@ -33,6 +33,24 @@ function getFull(v) {
 
 let view = 'practice';
 
+// 简码映射：字 -> 一级/二级/三级简码（供反查显示）
+const JM1_MAP = {};
+const JM2_MAP = {};
+const JM3_MAP = {};
+function buildJmMaps() {
+  (window.WUBI_DATA['jm1'] || []).forEach(c => JM1_MAP[c.v] = c.a);
+  (window.WUBI_DATA['jm2'] || []).forEach(c => JM2_MAP[c.v] = c.a);
+  (window.WUBI_DATA['jm3'] || []).forEach(c => JM3_MAP[c.v] = c.a);
+}
+
+function jmCodes(ch) {
+  const out = [];
+  if (JM1_MAP[ch]) out.push(JM1_MAP[ch].toUpperCase());
+  if (JM2_MAP[ch]) out.push(JM2_MAP[ch].toUpperCase());
+  if (JM3_MAP[ch]) out.push(JM3_MAP[ch].toUpperCase());
+  return out.join(' · ');
+}
+
 function switchView(v) {
   if (v === view) return;
   view = v;
@@ -67,11 +85,12 @@ function lookupChar() {
       h += '<div class="lookup-item"><div class="li-char">' + ch + '</div><div class="li-missing">未收录</div></div>';
       continue;
     }
+    const jm = jmCodes(ch);
     h += '<div class="lookup-item"><div class="li-char">' + ch + '</div>' +
-         '<div class="li-code">' + full.toUpperCase() + '</div>' +
-         '<div class="li-split">' +
-         (split.length ? split.map(x => '<span class="ls-glyph">' + x + '</span>').join('') : '') +
-         '</div></div>';
+         '<div class="li-codes"><div class="li-code">' + full.toUpperCase() + '</div>' +
+         (jm ? '<div class="li-jm">' + jm + '</div>' : '') + '</div>' +
+         (split.length ? '<div class="li-split">' + split.map(x => '<span class="ls-glyph">' + x + '</span>').join('') + '</div>' : '') +
+         '</div>';
   }
   box.innerHTML = h;
 }
@@ -375,6 +394,7 @@ function endGame() {
 (function init() {
   buildMenu();
   document.getElementById('menu').querySelectorAll('.menu-item')[0].classList.add('active');
+  buildJmMaps();
   state = loadState() || freshState();
   startLevel();
   showCurrent();
