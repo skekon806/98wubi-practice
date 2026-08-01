@@ -38,8 +38,8 @@ const JM2_MAP = {};
 const JM3_MAP = {};
 function buildJmMaps() {
   (window.WUBI_DATA['jm1'] || []).forEach(c => JM1_MAP[c.v] = c.a);
-  (window.WUBI_DATA['jm2'] || []).forEach(c => JM2_MAP[c.v] = c.a);
-  (window.WUBI_DATA['jm3'] || []).forEach(c => JM3_MAP[c.v] = c.a);
+  [...(window.WUBI_DATA['jm2'] || '')].forEach(v => { if (!JM2_MAP[v]) JM2_MAP[v] = getFull(v).slice(0, 2); });
+  [...(window.WUBI_DATA['jm3'] || '')].forEach(v => { if (!JM3_MAP[v]) JM3_MAP[v] = getFull(v).slice(0, 3); });
 }
 
 function jmCodes(ch) {
@@ -134,24 +134,42 @@ function ensureSchedule(v) {
 }
 
 function startLevel() {
-  DATA.forEach(c => ensureSchedule(c.v));
+  const list = typeof DATA === 'string' ? [...DATA] : DATA;
+  list.forEach(item => ensureSchedule(typeof item === 'string' ? item : item.v));
 }
+
+// 根据当前模式由全码推导答案（jm2=前2，jm3=前3，encode=一/二/三级简码优先）
+function getAnswer(v) {
+  const key = MODES[modeIdx].key;
+  const full = getFull(v);
+  if (key === 'jm2') return full.slice(0, 2);
+  if (key === 'jm3') return full.slice(0, 3);
+  if (key.indexOf('encode') === 0) {
+    if (JM1_MAP[v]) return JM1_MAP[v];
+    if (JM2_MAP[v]) return JM2_MAP[v];
+    if (JM3_MAP[v]) return JM3_MAP[v];
+  }
+  return full;
+}
+
+function cardV(item) { return typeof item === 'string' ? item : item.v; }
+function cardA(item) { return typeof item === 'string' ? getAnswer(item) : item.a; }
 
 // ---------- 学习队列（错题回炉 + 间隔 5→20→50） ----------
 // 卡片答完按间隔回炉到学习队列，间隔满即完成；答错重置为 5 题后回来
-function requeue(card, depth) {
-  card._reinsert = true;
+function requeue(item, depth) {
   const pos = Math.min(depth, state.queue.length);
-  state.queue.splice(pos, 0, card);
+  state.queue.splice(pos, 0, item);
 }
 
 function getNextCard() {
   if (state.queue.length) {
-    const card = state.queue.shift();
-    const fromReview = !!card._reinsert;
-    delete card._reinsert;
+    const item = state.queue.shift();
+    const st = ensureSchedule(cardV(item));
+    const fromReview = !!st.seen;
+    st.seen = true;
     if (!fromReview) state.seen++;
-    return { card, fromReview };
+    return { card: item, fromReview };
   }
   return null;
 }
@@ -199,6 +217,8 @@ function showCurrent() {
   current = getNextCard();
   if (!current) { endGame(); return; }
   const card = current.card;
+  const v = cardV(card);
+  const ans = cardA(card);
   const m = MODES[modeIdx];
   const isRoot = !!m.root;
 
@@ -206,19 +226,19 @@ function showCurrent() {
 
   const cd = document.getElementById('charDisplay');
   cd.style.display = 'block';
-  cd.textContent = card.v;
+  cd.textContent = v;
   cd.className = isRoot ? 'char-display root-char' : 'char-display';
 
   updateProgress();
   document.getElementById('hintText').textContent = current.fromReview
-    ? '复习 (' + state.cards[card.v].level + '/' + INTERVALS.length + ') · 输入' + (isRoot ? '键位' : '编码 ' + card.a.length + '键')
-    : isRoot ? '输入对应的字母键' : '输入编码（' + card.a.length + '个键）';
+    ? '复习 (' + state.cards[v].level + '/' + INTERVALS.length + ') · 输入' + (isRoot ? '键位' : '编码 ' + ans.length + '键')
+    : isRoot ? '输入对应的字母键' : '输入编码（' + ans.length + '个键）';
 
   const fb = document.getElementById('feedback');
   fb.className = 'feedback';
   fb.style.display = 'none';
 
-  buildInputs(card.a.length, isRoot);
+  buildInputs(ans.length, isRoot);
   isRetry = false;
   updateStats();
   saveState();
@@ -258,6 +278,8 @@ function buildInputs(n, isRoot) {
 function checkAnswer() {
   if (!current) return;
   const { card, fromReview } = current;
+  const v = cardV(card);
+  const ans = cardA(card);
   const isRoot = !!MODES[modeIdx].root;
 
   const boxes = document.querySelectorAll('.code-box');
@@ -265,8 +287,8 @@ function checkAnswer() {
   boxes.forEach(b => typed += b.value);
   typed = typed.toUpperCase();
 
-  if (typed === card.a.toUpperCase()) {
-    const st = ensureSchedule(card.v);
+  if (typed === ans.toUpperCase()) {
+    const st = ensureSchedule(v);
     if (!isRetry) {
       state.correct++;
       if (fromReview) {
@@ -296,14 +318,14 @@ function checkAnswer() {
   } else {
     if (!isRetry) {
       state.wrong++;
-      const st = ensureSchedule(card.v);
+      const st = ensureSchedule(v);
       st.level = 0;
       requeue(card, INTERVALS[0]); // 答错：5 题后回炉
       isRetry = true;
     }
     boxes.forEach((b, i) => {
-      if (b.value && b.value.toUpperCase() !== card.a[i].toUpperCase()) b.className = 'code-box wrong';
-      else if (b.value && b.value.toUpperCase() === card.a[i].toUpperCase()) b.className = 'code-box correct';
+      if (b.value && b.value.toUpperCase() !== ans[i].toUpperCase()) b.className = 'code-box wrong';
+      else if (b.value && b.value.toUpperCase() === ans[i].toUpperCase()) b.className = 'code-box correct';
       else b.className = 'code-box filled';
     });
     const fb = document.getElementById('feedback');
@@ -311,19 +333,19 @@ function checkAnswer() {
     fb.style.display = 'block';
     let fh = '';
     if (isRoot) {
-      fh = '<div class="key-hint">' + card.a.toUpperCase() + ' 键</div>' +
-           '<div class="region-tag">' + (REGIONS[card.a.toUpperCase()] || '') + '</div>' +
-           '<div style="color:#888;font-size:13px;margin-top:8px">输入 ' + card.a.toUpperCase() + ' 继续</div>';
+      fh = '<div class="key-hint">' + ans.toUpperCase() + ' 键</div>' +
+           '<div class="region-tag">' + (REGIONS[ans.toUpperCase()] || '') + '</div>' +
+           '<div style="color:#888;font-size:13px;margin-top:8px">输入 ' + ans.toUpperCase() + ' 继续</div>';
     } else {
-      const full = getFull(card.v);
-      const jm = jmCodes(card.v);
+      const full = getFull(v);
+      const jm = jmCodes(v);
       fh = '<div style="font-size:15px;margin-bottom:6px;color:#dc2626">编码错误</div>' +
            '<div class="fb-codes">' +
            (jm ? '<div class="li-jm">' + jm + '</div>' : '') +
            (full ? '<div class="li-code">' + full.toUpperCase() + '</div>' : '') +
            '</div>';
       if (MODES[modeIdx].explain) {
-        const parts = getSplit(card.v);
+        const parts = getSplit(v);
         if (parts.length) {
           fh += '<div class="root-chars">' + parts.map(x => '<span>' + x + '</span>').join('') + '</div>';
         }
