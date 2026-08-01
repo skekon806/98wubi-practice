@@ -64,7 +64,7 @@ function switchView(v) {
     document.getElementById('lookupInput').focus();
     lookupChar();
   } else {
-    showCurrent();
+    showCurrent(true);
   }
 }
 
@@ -124,7 +124,7 @@ function loadState() {
 }
 
 function freshState() {
-  return { queue: shuffle([...DATA]), cards: {}, pos: 0, correct: 0, wrong: 0, seen: 0, done: 0 };
+  return { queue: shuffle([...DATA]), cards: {}, pos: 0, correct: 0, wrong: 0, seen: 0, done: 0, current: null };
 }
 
 function ensureSchedule(v) {
@@ -167,8 +167,6 @@ function getNextCard() {
     const item = state.queue.shift();
     const st = ensureSchedule(cardV(item));
     const fromReview = !!st.seen;
-    st.seen = true;
-    if (!fromReview) state.seen++;
     return { card: item, fromReview };
   }
   return null;
@@ -198,9 +196,22 @@ function switchMode(newIdx) {
   document.getElementById('menu').querySelectorAll('.menu-item').forEach((el, i) => {
     el.classList.toggle('active', i === modeIdx);
   });
+  startSession();
+}
+
+// 读取存档启动当前模式：若上次离开时还有未作答的当前卡，先恢复它，避免跳过
+function startSession() {
   state = loadState() || freshState();
   startLevel();
-  showCurrent();
+  isRetry = false;
+  if (state.current != null) {
+    current = { card: state.current, fromReview: !!ensureSchedule(cardV(state.current)).seen };
+    state.current = null;
+    showCurrent(true);
+  } else {
+    current = null;
+    showCurrent();
+  }
 }
 
 function resetProgress() {
@@ -213,9 +224,13 @@ function resetProgress() {
 }
 
 // ---------- 出题 ----------
-function showCurrent() {
-  current = getNextCard();
+function showCurrent(keep) {
+  if (!keep || !current) {
+    current = getNextCard();
+    isRetry = false;
+  }
   if (!current) { endGame(); return; }
+  state.current = (current && !state.queue.includes(current.card)) ? current.card : null;
   const card = current.card;
   const v = cardV(card);
   const ans = cardA(card);
@@ -239,7 +254,6 @@ function showCurrent() {
   fb.style.display = 'none';
 
   buildInputs(ans.length, isRoot);
-  isRetry = false;
   updateStats();
   saveState();
 }
@@ -301,9 +315,12 @@ function checkAnswer() {
         }
       } else {
         // 新卡首答对：5 题后回炉
+        st.seen = true;
+        state.seen++;
         st.level = 0;
         requeue(card, INTERVALS[0]);
       }
+      state.current = null;
     }
     // 答错后的重打答对：不改变统计与回炉安排（延续出错时的重置）
 
@@ -319,8 +336,11 @@ function checkAnswer() {
     if (!isRetry) {
       state.wrong++;
       const st = ensureSchedule(v);
+      st.seen = true;
+      state.seen++;
       st.level = 0;
       requeue(card, INTERVALS[0]); // 答错：5 题后回炉
+      state.current = null;
       isRetry = true;
     }
     boxes.forEach((b, i) => {
@@ -379,6 +399,8 @@ function updateStats() {
 
 function endGame() {
   localStorage.removeItem(SAVE_KEY + MODES[modeIdx].key);
+  current = null;
+  state.current = null;
   document.getElementById('charDisplay').innerHTML = '🎉 完成!';
   document.getElementById('charDisplay').style.display = 'block';
   document.getElementById('codeInputs').style.display = 'none';
@@ -391,7 +413,5 @@ function endGame() {
   buildMenu();
   document.getElementById('menu').querySelectorAll('.menu-item')[0].classList.add('active');
   buildJmMaps();
-  state = loadState() || freshState();
-  startLevel();
-  showCurrent();
+  startSession();
 })();
