@@ -7,8 +7,8 @@ const MODES = [
   { key: 'encode3', name: '常用后500', sub: '低频500字', explain: true, data: window.WUBI_DATA['encode3'] },
 ];
 
-// 复习间隔（单位：题，1组=5题）：2组 → 5组 → 10组 → 20组 → 40组 → 80组
-const INTERVALS = [10, 25, 50, 100, 200, 400];
+// 复习间隔（单位：题，1组=5题）：2组 → 5组 → 10组 → 20组
+const INTERVALS = [10, 25, 50, 100];
 
 const REGIONS = {
   'G':'横区','F':'横区','D':'横区','S':'横区','A':'横区',
@@ -341,14 +341,18 @@ function checkAnswer() {
            '<div class="region-tag">' + (REGIONS[card.a.toUpperCase()] || '') + '</div>' +
            '<div style="color:#888;font-size:13px;margin-top:8px">输入 ' + card.a.toUpperCase() + ' 继续</div>';
     } else {
-      fh = '<div style="font-size:15px;margin-bottom:6px;color:#dc2626">编码错误</div>' +
-           '<div style="font-size:15px;color:#4f6cf7">正确: <strong>' + card.a.toUpperCase() + '</strong>';
       const full = getFull(card.v);
-      if (MODES[modeIdx].explain && full) fh += ' <span class="full-code">(全码 ' + full.toUpperCase() + ')</span>';
-      fh += '</div>';
-      const parts = getSplit(card.v);
-      if (MODES[modeIdx].explain && parts.length) {
-        fh += '<div class="root-chars">' + parts.map(x => '<span>' + x + '</span>').join('') + '</div>';
+      const jm = jmCodes(card.v);
+      fh = '<div style="font-size:15px;margin-bottom:6px;color:#dc2626">编码错误</div>' +
+           '<div class="fb-codes">' +
+           (jm ? '<div class="li-jm">' + jm + '</div>' : '') +
+           (full ? '<div class="li-code">' + full.toUpperCase() + '</div>' : '') +
+           '</div>';
+      if (MODES[modeIdx].explain) {
+        const parts = getSplit(card.v);
+        if (parts.length) {
+          fh += '<div class="root-chars">' + parts.map(x => '<span>' + x + '</span>').join('') + '</div>';
+        }
       }
       fh += '<div style="color:#888;font-size:13px;margin-top:6px">照着上面输入正确编码</div>';
     }
