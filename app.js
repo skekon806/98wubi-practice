@@ -184,16 +184,7 @@ function switchMode(newIdx) {
   document.getElementById('menu').querySelectorAll('.menu-item').forEach((el, i) => {
     el.classList.toggle('active', i === modeIdx);
   });
-  const s = loadState();
-  if (s) {
-    if (confirm('「' + MODES[modeIdx].name + '」上次练到第 ' + s.pos + ' 题，剩余 ' + s.queue.length + ' 项。继续？\n点【取消】从头开始（删除该模式进度）')) {
-      state = s;
-    } else {
-      state = freshState();
-    }
-  } else {
-    state = freshState();
-  }
+  state = loadState() || freshState();
   startLevel();
   showCurrent();
 }
@@ -385,16 +376,7 @@ function endGame() {
 (function init() {
   buildMenu();
   document.getElementById('menu').querySelectorAll('.menu-item')[0].classList.add('active');
-  const s = loadState();
-  if (s) {
-    if (confirm('「' + MODES[0].name + '」上次练到第 ' + s.pos + ' 题，剩余 ' + s.queue.length + ' 项。继续？\n点【取消】从头开始（删除该模式进度）')) {
-      state = s;
-    } else {
-      state = freshState();
-    }
-  } else {
-    state = freshState();
-  }
+  state = loadState() || freshState();
   startLevel();
   showCurrent();
 })();
