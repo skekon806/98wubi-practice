@@ -69,7 +69,7 @@ function lookupChar() {
       continue;
     }
     h += '<div class="lookup-item"><div class="li-char">' + ch + '</div>' +
-         '<div class="li-code">' + full + '</div>' +
+         '<div class="li-code">' + full.toUpperCase() + '</div>' +
          '<div class="li-split">' +
          (split.length ? split.map(x => '<span class="ls-glyph">' + x + '</span>').join('') : '') +
          '</div></div>';
@@ -251,7 +251,7 @@ function buildInputs(n, isRoot) {
   const boxes = document.querySelectorAll('.code-box');
   boxes.forEach((box, i, arr) => {
     box.addEventListener('input', function() {
-      this.value = this.value.toLowerCase();
+      this.value = this.value.toUpperCase();
       this.className = 'code-box' + (isRoot ? ' single filled' : ' filled');
       if (this.value && i < arr.length - 1) arr[i + 1].focus();
       if (this.value && i === arr.length - 1) setTimeout(checkAnswer, 80);
@@ -276,9 +276,9 @@ function checkAnswer() {
   const boxes = document.querySelectorAll('.code-box');
   let typed = '';
   boxes.forEach(b => typed += b.value);
-  typed = typed.toLowerCase();
+  typed = typed.toUpperCase();
 
-  if (typed === card.a.toLowerCase()) {
+  if (typed === card.a.toUpperCase()) {
     const st = ensureSchedule(card.v);
     if (fromReview && final) {
       // 复习阶段：答完即清，不再排期
@@ -319,8 +319,8 @@ function checkAnswer() {
       isRetry = true;
     }
     boxes.forEach((b, i) => {
-      if (b.value && b.value.toLowerCase() !== card.a[i]) b.className = 'code-box wrong';
-      else if (b.value && b.value.toLowerCase() === card.a[i]) b.className = 'code-box correct';
+      if (b.value && b.value.toUpperCase() !== card.a[i].toUpperCase()) b.className = 'code-box wrong';
+      else if (b.value && b.value.toUpperCase() === card.a[i].toUpperCase()) b.className = 'code-box correct';
       else b.className = 'code-box filled';
     });
     const fb = document.getElementById('feedback');
@@ -328,14 +328,14 @@ function checkAnswer() {
     fb.style.display = 'block';
     let fh = '';
     if (isRoot) {
-      fh = '<div class="key-hint">' + card.a + ' 键</div>' +
+      fh = '<div class="key-hint">' + card.a.toUpperCase() + ' 键</div>' +
            '<div class="region-tag">' + (REGIONS[card.a.toUpperCase()] || '') + '</div>' +
-           '<div style="color:#888;font-size:13px;margin-top:8px">输入 ' + card.a + ' 继续</div>';
+           '<div style="color:#888;font-size:13px;margin-top:8px">输入 ' + card.a.toUpperCase() + ' 继续</div>';
     } else {
       fh = '<div style="font-size:15px;margin-bottom:6px;color:#dc2626">编码错误</div>' +
-           '<div style="font-size:15px;color:#4f6cf7">正确: <strong>' + card.a + '</strong>';
+           '<div style="font-size:15px;color:#4f6cf7">正确: <strong>' + card.a.toUpperCase() + '</strong>';
       const full = getFull(card.v);
-      if (MODES[modeIdx].explain && full) fh += ' <span class="full-code">(全码 ' + full + ')</span>';
+      if (MODES[modeIdx].explain && full) fh += ' <span class="full-code">(全码 ' + full.toUpperCase() + ')</span>';
       fh += '</div>';
       const parts = getSplit(card.v);
       if (MODES[modeIdx].explain && parts.length) {
