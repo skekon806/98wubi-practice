@@ -19,16 +19,15 @@ const REGIONS = {
 };
 const SAVE_KEY = 'wubi98_';
 
-// 从 98.txt 转的拆解字典（data/decomp.js）查询某字的码元拆解
+// 从 spelling2.txt 转的字典（data/dict.js）：字 → {s 拆解, c 全码}
 function getSplit(v) {
-  const raw = window.WUBI_DECOMP && window.WUBI_DECOMP[v];
-  if (!raw) return [];
-  return Array.from(raw);
+  const e = window.WUBI_DICT && window.WUBI_DICT[v];
+  return e && e.s ? Array.from(e.s) : [];
 }
 
-// 从 98_2.txt 转的全码字典（data/code.js）查询某字的全码
+// 查询某字的全码
 function getFull(v) {
-  return (window.WUBI_CODE && window.WUBI_CODE[v]) || '';
+  return (window.WUBI_DICT && window.WUBI_DICT[v] && window.WUBI_DICT[v].c) || '';
 }
 
 let view = 'practice';
