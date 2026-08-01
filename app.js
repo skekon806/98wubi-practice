@@ -20,6 +20,63 @@ const REGIONS = {
 };
 const SAVE_KEY = 'wubi98_';
 
+// 从 98.txt 转的拆解字典（data/decomp.js）查询某字的码元拆解
+function getSplit(v) {
+  const raw = window.WUBI_DECOMP && window.WUBI_DECOMP[v];
+  if (!raw) return [];
+  return Array.from(raw);
+}
+
+// 从 98_2.txt 转的全码字典（data/code.js）查询某字的全码
+function getFull(v) {
+  return (window.WUBI_CODE && window.WUBI_CODE[v]) || '';
+}
+
+let view = 'practice';
+
+function switchView(v) {
+  if (v === view) return;
+  view = v;
+  const lookup = v === 'lookup';
+  document.getElementById('practicePanel').style.display = lookup ? 'none' : 'block';
+  document.getElementById('lookupPanel').style.display = lookup ? 'block' : 'none';
+  document.getElementById('hamburger').style.display = lookup ? 'none' : '';
+  document.getElementById('vsPractice').classList.toggle('active', !lookup);
+  document.getElementById('vsLookup').classList.toggle('active', lookup);
+  document.getElementById('menu').classList.remove('open');
+  if (lookup) {
+    document.getElementById('lookupInput').focus();
+    lookupChar();
+  } else {
+    showCurrent();
+  }
+}
+
+function lookupChar() {
+  const input = document.getElementById('lookupInput').value;
+  const box = document.getElementById('lookupResult');
+  if (!input) {
+    box.innerHTML = '<div class="lookup-hint">输入一个或多个汉字，实时反查编码与拆解</div>';
+    return;
+  }
+  let h = '';
+  for (const ch of input) {
+    if (/\s/.test(ch)) continue;
+    const full = getFull(ch);
+    const split = getSplit(ch);
+    if (!full && !split.length) {
+      h += '<div class="lookup-item"><div class="li-char">' + ch + '</div><div class="li-missing">未收录</div></div>';
+      continue;
+    }
+    h += '<div class="lookup-item"><div class="li-char">' + ch + '</div>' +
+         '<div class="li-code">' + full + '</div>' +
+         '<div class="li-split">' +
+         (split.length ? split.map(x => '<span class="ls-glyph">' + x + '</span>').join('') : '') +
+         '</div></div>';
+  }
+  box.innerHTML = h;
+}
+
 let modeIdx = 0;
 let DATA = MODES[0].data;
 let state = null;
@@ -162,7 +219,6 @@ function showCurrent() {
 
   const cd = document.getElementById('charDisplay');
   cd.style.display = 'block';
-  document.getElementById('rootDisplay').style.display = 'none';
   cd.textContent = card.v;
   cd.className = isRoot ? 'char-display root-char' : 'char-display';
 
@@ -278,10 +334,12 @@ function checkAnswer() {
     } else {
       fh = '<div style="font-size:15px;margin-bottom:6px;color:#dc2626">编码错误</div>' +
            '<div style="font-size:15px;color:#4f6cf7">正确: <strong>' + card.a + '</strong>';
-      if (MODES[modeIdx].explain && card.full) fh += ' <span class="full-code">(全码 ' + card.full + ')</span>';
+      const full = getFull(card.v);
+      if (MODES[modeIdx].explain && full) fh += ' <span class="full-code">(全码 ' + full + ')</span>';
       fh += '</div>';
-      if (MODES[modeIdx].explain && card.s && card.s.length) {
-        fh += '<div class="root-chars">' + card.s.map(x => '<span>' + x + '</span>').join('') + '</div>';
+      const parts = getSplit(card.v);
+      if (MODES[modeIdx].explain && parts.length) {
+        fh += '<div class="root-chars">' + parts.map(x => '<span>' + x + '</span>').join('') + '</div>';
       }
       fh += '<div style="color:#888;font-size:13px;margin-top:6px">照着上面输入正确编码</div>';
     }
@@ -318,7 +376,6 @@ function endGame() {
   localStorage.removeItem(SAVE_KEY + MODES[modeIdx].key);
   document.getElementById('charDisplay').innerHTML = '🎉 完成!';
   document.getElementById('charDisplay').style.display = 'block';
-  document.getElementById('rootDisplay').style.display = 'none';
   document.getElementById('codeInputs').style.display = 'none';
   document.getElementById('feedback').style.display = 'none';
   document.getElementById('hintText').innerHTML = '共 ' + state.pos + ' 题 · 正确 ' + state.correct + ' 错误 ' + state.wrong +

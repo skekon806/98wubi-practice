@@ -69,10 +69,7 @@ body {
   font-family: zgFont, "Microsoft YaHei", sans-serif;
   font-size: 120px;
 }
-.root-display { min-height: 150px; display: flex; justify-content: center; align-items: center; margin: 12px 0; }
-.root-display img { max-width: 150px; max-height: 150px; border-radius: 8px; border: 2px solid #e8eaed; }
-.top-bar {
-  display: flex; justify-content: space-between; align-items: center;
+.top-bar { display: flex; justify-content: space-between; align-items: center;
   color: #888; font-size: 14px; margin-bottom: 8px;
 }
 .stats { display: flex; gap: 16px; }
@@ -114,6 +111,40 @@ body {
 .hint-text { font-size: 14px; color: #888; }
 .schedule-info { font-size: 12px; color: #aaa; margin-top: 10px; line-height: 1.6; }
 
+/* ---- 视图切换 ---- */
+.view-switch {
+  display: flex; justify-content: center; gap: 10px; margin-bottom: 16px;
+}
+.vs-btn {
+  padding: 6px 28px; border-radius: 999px;
+  border: 1px solid #d0d5dd; background: #fff; color: #666;
+  font-size: 14px; cursor: pointer;
+}
+.vs-btn.active { background: #4f6cf7; border-color: #4f6cf7; color: #fff; font-weight: bold; }
+
+/* ---- 反查 ---- */
+.lookup-panel { display: none; }
+.lookup-input {
+  width: 100%; padding: 12px; font-size: 24px; text-align: center;
+  border: 2px solid #d0d5dd; border-radius: 10px; outline: none;
+  font-family: inherit; margin-bottom: 14px;
+}
+.lookup-input:focus { border-color: #4f6cf7; box-shadow: 0 0 0 3px rgba(79,108,247,.15); }
+.lookup-hint { color: #888; font-size: 14px; padding: 36px 0; }
+.lookup-item {
+  display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+  background: #fafbfc; border: 1px solid #e2e5ea; border-radius: 10px;
+  padding: 10px 16px; margin-bottom: 8px;
+}
+.li-char { font-size: 44px; line-height: 1; width: 52px; text-align: center; flex-shrink: 0; }
+.li-code {
+  font-size: 22px; font-family: "Consolas", monospace; color: #4f6cf7;
+  font-weight: bold; letter-spacing: 2px; flex-shrink: 0;
+}
+.li-split { display: flex; flex-wrap: wrap; gap: 4px; }
+.ls-glyph { font-family: zgFont, "Microsoft YaHei", sans-serif; font-size: 32px; line-height: 1; }
+.li-missing { color: #999; font-size: 14px; }
+
 /* ---- 移动端适配 ---- */
 @media (max-width: 520px) {
   body { align-items: flex-start; }
@@ -133,7 +164,6 @@ body {
   .stats { gap: 10px; }
   .char-display { font-size: 84px; margin: 8px 0; }
   .char-display.root-char { font-size: 88px; }
-  .root-display { min-height: 120px; }
   .code-inputs { gap: 8px; margin: 14px 0; }
   .code-inputs input { width: 46px; height: 54px; font-size: 26px; }
   .code-inputs input.single { width: 60px; height: 60px; font-size: 30px; }
@@ -141,34 +171,55 @@ body {
   .feedback .key-hint { font-size: 24px; }
   .root-chars span { font-size: 40px; padding: 6px 9px; }
   .schedule-info { font-size: 11px; }
+  .view-switch { margin-bottom: 12px; }
+  .vs-btn { padding: 6px 22px; }
+  .lookup-item { gap: 12px; padding: 8px 10px; }
+  .li-char { font-size: 36px; width: 44px; }
+  .li-code { font-size: 18px; }
+  .ls-glyph { font-size: 26px; }
 }
 </style>
 </head>
 <body>
 <div class="container">
-  <div class="hamburger" onclick="toggleMenu()"><span></span><span></span><span></span></div>
+  <div class="hamburger" id="hamburger" onclick="toggleMenu()"><span></span><span></span><span></span></div>
   <div class="menu" id="menu"></div>
 
-  <div class="mode-title" id="modeTitle"></div>
-  <div class="top-bar">
-    <span id="progress">0 / 0</span>
-    <div class="stats">
-      <span>正确 <strong id="correctCount">0</strong></span>
-      <span>错误 <strong id="wrongCount">0</strong></span>
-      <span class="badge" id="reviewBadge">待复习: 0</span>
+  <div class="view-switch">
+    <button class="vs-btn active" id="vsPractice" onclick="switchView('practice')">练习</button>
+    <button class="vs-btn" id="vsLookup" onclick="switchView('lookup')">反查</button>
+  </div>
+
+  <div id="practicePanel">
+    <div class="mode-title" id="modeTitle"></div>
+    <div class="top-bar">
+      <span id="progress">0 / 0</span>
+      <div class="stats">
+        <span>正确 <strong id="correctCount">0</strong></span>
+        <span>错误 <strong id="wrongCount">0</strong></span>
+        <span class="badge" id="reviewBadge">待复习: 0</span>
+      </div>
+    </div>
+    <div id="charDisplay" class="char-display" style="display:none"></div>
+    <div class="hint-text" id="hintText"></div>
+    <div class="code-inputs" id="codeInputs"></div>
+    <div class="feedback" id="feedback"></div>
+    <div class="schedule-info">
+      复习曲线（艾宾浩斯，1组=5题）：每字答对后按 2组→5组→10组→20组→40组→80组 间隔复习，答错重置为 2组。<br>答对的新字也会进入复习；新字练完后自动进入复习阶段。进度自动保存在本机
     </div>
   </div>
-  <div id="charDisplay" class="char-display" style="display:none"></div>
-  <div id="rootDisplay" class="root-display" style="display:none"><img id="rootImg" src="" alt="码元"></div>
-  <div class="hint-text" id="hintText"></div>
-  <div class="code-inputs" id="codeInputs"></div>
-  <div class="feedback" id="feedback"></div>
-  <div class="schedule-info">
-    复习曲线（艾宾浩斯，1组=5题）：每字答对后按 2组→5组→10组→20组→40组→80组 间隔复习，答错重置为 2组。<br>答对的新字也会进入复习；新字练完后自动进入复习阶段。进度自动保存在本机
+
+  <div class="lookup-panel" id="lookupPanel">
+    <input class="lookup-input" id="lookupInput" type="text" maxlength="8"
+           placeholder="输入汉字，实时反查编码与拆解"
+           autocomplete="off" autocapitalize="off" spellcheck="false" oninput="lookupChar()">
+    <div class="lookup-result" id="lookupResult"></div>
   </div>
 </div>
 
 <script>window.WUBI_DATA = {};</script>
+<script src="data/decomp.js"></script>
+<script src="data/code.js"></script>
 <script src="data/encode1.js"></script>
 <script src="data/encode2.js"></script>
 <script src="data/encode3.js"></script>

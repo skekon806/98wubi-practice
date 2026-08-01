@@ -31,10 +31,12 @@ wubi98/
 ├── index.html          # 主页面（双击打开）
 ├── app.js              # 练习引擎（界面逻辑、复习算法、进度保存）
 ├── 98WB-0.otf          # 码元字体（渲染拆分字符，88KB）
-└── data/               # 练习数据（JS 格式），每模式一个文件
+└── data/               # 练习数据（JS 格式）
+    ├── decomp.js       #   码元拆解字典：字 → 拆解序列（由 98.txt 生成）
+    ├── code.js         #   全码字典：字 → 全码（由 98_2.txt 生成）
     ├── encode1.js      #   常用前500：1500 常用字高频段
-├── encode2.js      #   常用中500：1500 常用字中频段
-├── encode3.js      #   常用后500：1500 常用字低频段
+    ├── encode2.js      #   常用中500：1500 常用字中频段
+    ├── encode3.js      #   常用后500：1500 常用字低频段
     ├── jm1.js          #   一级简码：25 字
     ├── jm2.js          #   二级简码：611 字
     ├── jm3.js          #   三级简码：668 字
@@ -43,10 +45,12 @@ wubi98/
 
 ## 数据说明
 
-- 3500 常用字的码元拆解以**码元字符**存储（Unicode PUA 码位），通过 `98WB-0.otf` 字体渲染，无需图片
+- 每字拆解由 `data/decomp.js` 字典统一提供（`window.WUBI_DECOMP`，运行时按字查询）
+- 每字全码由 `data/code.js` 字典统一提供（`window.WUBI_CODE`，运行时按字查询）
+- 各模式数据文件（encode*/jm*）只存 `{v 字, a 答案编码}`，不再内嵌拆解与全码
+- 码元拆解数据来源：[aardio/wubi-lex 的 98.txt](https://github.com/aardio/wubi-lex/blob/master/sepllingData/98.txt)（27535 字拆解表）
+- 全码表来源：[yanhuacuo/98wubi-tables](https://github.com/yanhuacuo/98wubi-tables)（按 98.txt 字集过滤）
 - 码元练习的码元字符 → 键位映射，由 3500 字拆解与编码逐位对应统计而来（无冲突）
-- 码元拆分数据来源：五笔小筑《常用三千五百字》表格
-- 简码全码对照表来源：[yanhuacuo/98wubi-tables](https://github.com/yanhuacuo/98wubi-tables)（27533 字全码表）
 - 数据均为自用学习整理，98 五笔编码无版权问题
 
 ## 技术细节
