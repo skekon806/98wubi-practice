@@ -7,8 +7,8 @@ const MODES = [
   { key: 'encode3', name: '常用后500', sub: '低频500字', explain: true, data: window.WUBI_DATA['encode3'] },
 ];
 
-// 复习间隔（单位：题，1组=5题）：2组 → 5组 → 10组 → 20组
-const INTERVALS = [10, 25, 50, 100];
+// 复习间隔（单位：题）：5 → 20 → 50，对的和错的都按此顺序递增
+const INTERVALS = [5, 20, 50];
 
 const REGIONS = {
   'G':'横区','F':'横区','D':'横区','S':'横区','A':'横区',
@@ -124,12 +124,12 @@ function loadState() {
 }
 
 function freshState() {
-  return { queue: shuffle([...DATA]), cards: {}, pos: 0, correct: 0, wrong: 0 };
+  return { queue: shuffle([...DATA]), cards: {}, pos: 0, correct: 0, wrong: 0, seen: 0, done: 0 };
 }
 
 function ensureSchedule(v) {
   let c = state.cards[v];
-  if (!c) c = state.cards[v] = { level: 0, nextAt: 0 };
+  if (!c) c = state.cards[v] = { level: 0 };
   return c;
 }
 
@@ -137,43 +137,22 @@ function startLevel() {
   DATA.forEach(c => ensureSchedule(c.v));
 }
 
-// ---------- 复习调度 ----------
-// state.pos = 已完成的题数；卡片答完后 nextAt = pos + INTERVALS[level]
-// 到期判断：nextAt <= pos（即过了 N 题后复现）
-
-function scheduledReviews() {
-  const list = [];
-  DATA.forEach(c => {
-    const s = state.cards[c.v];
-    if (s && s.nextAt > 0) list.push({ card: c, nextAt: s.nextAt, level: s.level });
-  });
-  list.sort((a, b) => a.nextAt - b.nextAt);
-  return list;
-}
-
-function dueReviews() {
-  return scheduledReviews().filter(r => r.nextAt <= state.pos);
-}
-
-function pendingReviews() {
-  return scheduledReviews().length;
+// ---------- 学习队列（错题回炉 + 间隔 5→20→50） ----------
+// 卡片答完按间隔回炉到学习队列，间隔满即完成；答错重置为 5 题后回来
+function requeue(card, depth) {
+  card._reinsert = true;
+  const pos = Math.min(depth, state.queue.length);
+  state.queue.splice(pos, 0, card);
 }
 
 function getNextCard() {
-  // 1) 到期的复习优先
-  const due = dueReviews();
-  if (due.length) return { card: due[0].card, fromReview: true, final: false };
-
-  // 2) 新卡
   if (state.queue.length) {
     const card = state.queue.shift();
-    return { card, fromReview: false, final: false };
+    const fromReview = !!card._reinsert;
+    delete card._reinsert;
+    if (!fromReview) state.seen++;
+    return { card, fromReview };
   }
-
-  // 3) 新卡练完 → 进入复习阶段，按到期顺序把剩余复习走完（final：答完即清，不再排期）
-  const rest = scheduledReviews();
-  if (rest.length) return { card: rest[0].card, fromReview: true, final: true };
-
   return null;
 }
 
@@ -278,7 +257,7 @@ function buildInputs(n, isRoot) {
 // ---------- 判题 ----------
 function checkAnswer() {
   if (!current) return;
-  const { card, fromReview, final } = current;
+  const { card, fromReview } = current;
   const isRoot = !!MODES[modeIdx].root;
 
   const boxes = document.querySelectorAll('.code-box');
@@ -288,25 +267,23 @@ function checkAnswer() {
 
   if (typed === card.a.toUpperCase()) {
     const st = ensureSchedule(card.v);
-    if (fromReview && final) {
-      // 复习阶段：答完即清，不再排期
-      if (!isRetry) state.correct++;
-      st.level = 0;
-      st.nextAt = 0;
-    } else if (fromReview) {
-      // 到期复习答对：间隔升级（2组→5组→10组→20组→40组→80组）
-      st.level = Math.min(st.level + 1, INTERVALS.length - 1);
-      st.nextAt = state.pos + INTERVALS[st.level];
+    if (!isRetry) {
       state.correct++;
-    } else if (!isRetry) {
-      // 新卡首答：无论对错都进入复习曲线（答错时的安排已在出错分支写入）
-      state.correct++;
-      if (!st.nextAt) {
+      if (fromReview) {
+        // 回炉复习答对：间隔升级 5→20→50，到最大即完成
+        st.level++;
+        if (st.level >= INTERVALS.length) {
+          state.done++;
+        } else {
+          requeue(card, INTERVALS[st.level]);
+        }
+      } else {
+        // 新卡首答对：5 题后回炉
         st.level = 0;
-        st.nextAt = state.pos + INTERVALS[0];
+        requeue(card, INTERVALS[0]);
       }
     }
-    // 答错后的重打答对：不改变复习安排
+    // 答错后的重打答对：不改变统计与回炉安排（延续出错时的重置）
 
     const fb = document.getElementById('feedback');
     fb.className = 'feedback';
@@ -319,11 +296,9 @@ function checkAnswer() {
   } else {
     if (!isRetry) {
       state.wrong++;
-      if (!final) {
-        const st = ensureSchedule(card.v);
-        st.level = 0;
-        st.nextAt = state.pos + INTERVALS[0];
-      }
+      const st = ensureSchedule(card.v);
+      st.level = 0;
+      requeue(card, INTERVALS[0]); // 答错：5 题后回炉
       isRetry = true;
     }
     boxes.forEach((b, i) => {
@@ -371,17 +346,13 @@ function updateProgress() {
   const m = MODES[modeIdx];
   const total = m.data.length;
   const p = document.getElementById('progress');
-  if (state.queue.length === 0 && pendingReviews() > 0) {
-    p.textContent = '复习阶段 · 剩余 ' + pendingReviews() + ' 道复习';
-  } else {
-    p.textContent = '剩余 ' + state.queue.length + ' · 已学 ' + (total - state.queue.length) + ' / ' + total;
-  }
+  p.textContent = '剩余 ' + state.queue.length + ' · 已学 ' + state.seen + ' / ' + total;
 }
 
 function updateStats() {
   document.getElementById('correctCount').textContent = state.correct;
   document.getElementById('wrongCount').textContent = state.wrong;
-  document.getElementById('reviewBadge').textContent = '待复习: ' + dueReviews().length;
+  document.getElementById('reviewBadge').textContent = '复习中: ' + (state.seen - state.done);
 }
 
 function endGame() {
