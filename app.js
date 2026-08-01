@@ -1,8 +1,7 @@
 const MODES = [
   { key: 'root', name: '码元练习', sub: '键名+码元', explain: false, root: true, data: window.WUBI_DATA['root'] },
   { key: 'jm1', name: '一级简码', sub: '25字 · 单键', explain: false, data: window.WUBI_DATA['jm1'] },
-  { key: 'jm2', name: '二级简码', sub: '611字 · 两键', explain: true, data: window.WUBI_DATA['jm2'] },
-  { key: 'jm3', name: '三级简码', sub: '668字 · 三键', explain: true, data: window.WUBI_DATA['jm3'] },
+  { key: 'jm2', name: '二级简码', sub: '613字 · 两键', explain: true, data: window.WUBI_DATA['jm2'] },
   { key: 'encode1', name: '常用前500', sub: '高频500字', explain: true, data: window.WUBI_DATA['encode1'] },
   { key: 'encode2', name: '常用中500', sub: '次频500字', explain: true, data: window.WUBI_DATA['encode2'] },
   { key: 'encode3', name: '常用后500', sub: '低频500字', explain: true, data: window.WUBI_DATA['encode3'] },
