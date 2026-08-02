@@ -1,6 +1,9 @@
 # Node
 node_modules/
 
+# 工具脚本（不上传）
+scripts/
+
 # Editor
 .vscode/
 .idea/

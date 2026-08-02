@@ -112,6 +112,8 @@ body {
 }
 .hint-text { font-size: 14px; color: #888; }
 .schedule-info { font-size: 12px; color: #aaa; margin-top: 10px; line-height: 1.6; }
+.version-switch { display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 14px; }
+.vs-label { font-size: 12px; color: #888; margin-right: 2px; }
 
 /* ---- 视图切换 ---- */
 .view-switch {
@@ -134,15 +136,39 @@ body {
 .lookup-input:focus { border-color: #4f6cf7; box-shadow: 0 0 0 3px rgba(79,108,247,.15); }
 .lookup-hint { color: #888; font-size: 14px; padding: 36px 0; }
 .lookup-item {
-  display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+  display: flex;
+  align-items: stretch;
+  gap: 14px;
   background: #fafbfc; border: 1px solid #e2e5ea; border-radius: 12px;
-  padding: 12px 16px; margin-bottom: 10px;
+  padding: 10px 14px; margin-bottom: 10px;
 }
-.li-char { font-size: 44px; line-height: 1; width: 52px; text-align: center; flex-shrink: 0; }
-.li-codes { flex-shrink: 0; text-align: left; }
+.li-char {
+  flex-shrink: 0;
+  width: 66px;
+  font-family: zgFont, "Microsoft YaHei", sans-serif;
+  font-size: 46px;
+  line-height: 1.15;
+  display: flex; align-items: center; justify-content: center;
+  border-right: 1px solid #e8eaee;
+}
+.li-results { flex: 1; min-width: 0; }
+.li-row {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 5px 0;
+}
+.li-row + .li-row { border-top: 1px dashed #e8eaee; }
+.li-ver {
+  flex-shrink: 0; font-size: 12px; color: #fff; border-radius: 6px;
+  padding: 2px 10px; min-width: 52px; text-align: center; margin-top: 1px;
+}
+.v86 { background: #4f6cf7; }
+.v98 { background: #16a34a; }
+.v06 { background: #ea580c; }
+.li-body { flex: 1; min-width: 0; }
+.li-line { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
 .li-code {
-  font-size: 22px; font-family: "Consolas", monospace; color: #4f6cf7;
-  font-weight: bold; letter-spacing: 2px; min-width: calc(4ch + 6px);
+  font-size: 20px; font-family: "Consolas", monospace; color: #4f6cf7;
+  font-weight: bold; letter-spacing: 2px; flex-shrink: 0;
 }
 .li-jm {
   font-family: "Consolas", monospace; font-size: 22px; font-weight: bold;
@@ -150,8 +176,11 @@ body {
 }
 .fb-codes { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 6px; }
 .fb-codes .li-jm { margin-top: 0; }
-.li-split { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
-.ls-glyph { font-family: zgFont, "Microsoft YaHei", sans-serif; font-size: 32px; line-height: 1; }
+.li-line .li-jm {
+  font-size: 14px; letter-spacing: 1px; margin-top: 0;
+}
+.li-split { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-top: 1px; }
+.ls-glyph { font-family: zgFont, "Microsoft YaHei", sans-serif; font-size: 24px; line-height: 1; }
 .li-missing { color: #999; font-size: 14px; }
 
 /* ---- 移动端适配 ---- */
@@ -182,11 +211,12 @@ body {
   .schedule-info { font-size: 11px; }
   .view-switch { margin-bottom: 12px; }
   .vs-btn { padding: 6px 22px; }
-  .lookup-item { gap: 12px; padding: 8px 10px; }
-  .li-char { font-size: 36px; width: 44px; }
+  .lookup-item { padding: 8px 10px; gap: 10px; }
+  .li-char { width: 50px; font-size: 32px; }
   .li-code { font-size: 18px; }
   .li-jm { font-size: 18px; }
-  .ls-glyph { font-size: 26px; }
+  .li-line .li-jm { font-size: 12px; }
+  .ls-glyph { font-size: 22px; }
 }
 </style>
 </head>
@@ -217,6 +247,12 @@ body {
     <div class="schedule-info">
       错题直接回炉：答错 5 题后回来，答对后按 5题→20题→50题 间隔递增，间隔满即完成。<br>进度自动保存在本机
     </div>
+    <div class="version-switch">
+      <span class="vs-label">五笔版本</span>
+      <button class="vs-btn" id="v86" onclick="setVersion('86')">86</button>
+      <button class="vs-btn active" id="v98" onclick="setVersion('98')">98</button>
+      <button class="vs-btn" id="v06" onclick="setVersion('06')">新世纪</button>
+    </div>
   </div>
 
   <div class="lookup-panel" id="lookupPanel">
@@ -228,14 +264,22 @@ body {
 </div>
 
 <script>window.WUBI_DATA = {};</script>
-<script src="data/dict.js"></script>
+<script src="data/dict_86.js"></script>
+<script src="data/dict_98.js"></script>
+<script src="data/dict_06.js"></script>
 <script src="data/encode1.js"></script>
 <script src="data/encode2.js"></script>
 <script src="data/encode3.js"></script>
 <script src="data/jm1.js"></script>
-<script src="data/jm2.js"></script>
-<script src="data/jm3.js"></script>
-<script src="data/root.js"></script>
+<script src="data/jm2_98.js"></script>
+<script src="data/jm2_86.js"></script>
+<script src="data/jm2_06.js"></script>
+<script src="data/jm3_98.js"></script>
+<script src="data/jm3_86.js"></script>
+<script src="data/jm3_06.js"></script>
+<script src="data/root_98.js"></script>
+<script src="data/root_86.js"></script>
+<script src="data/root_06.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

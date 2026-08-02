@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>码元编号表</title>
+<style>
+@font-face {
+  font-family: zgFont;
+  src: url('98WB-0.otf') format('opentype');
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: "Microsoft YaHei", sans-serif, zgFont;
+  background: #f0f2f5;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  min-height: 100vh;
+  padding: 24px 16px;
+}
+.container {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 4px 24px rgba(0,0,0,.1);
+  padding: 28px 32px;
+  width: 640px;
+  max-width: 100%;
+}
+h1 { font-size: 18px; margin-bottom: 4px; }
+.sub { font-size: 13px; color: #888; margin-bottom: 14px; }
+.vs-switch { display: flex; justify-content: center; gap: 10px; margin-bottom: 16px; }
+.vs-btn {
+  padding: 6px 26px; border-radius: 999px;
+  border: 1px solid #d0d5dd; background: #fff; color: #666;
+  font-size: 14px; cursor: pointer;
+}
+.vs-btn.active { background: #4f6cf7; border-color: #4f6cf7; color: #fff; font-weight: bold; }
+#summary { text-align: center; font-size: 13px; color: #666; margin-bottom: 10px; }
+.key-head {
+  font-size: 14px; font-weight: bold; color: #4f6cf7;
+  margin: 14px 0 6px;
+}
+.key-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+.cell {
+  width: 64px; text-align: center;
+  background: #fff; border: 1px solid #e2e5ea; border-radius: 8px;
+  padding: 6px 2px;
+}
+.cell .glyph {
+  font-family: zgFont, "Microsoft YaHei", sans-serif;
+  font-size: 32px; line-height: 1.1; height: 38px;
+}
+.cell .num { font-size: 11px; color: #666; margin-top: 2px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>码元编号表</h1>
+  <div class="sub">编号规则：键名 + 序号，如 A1、B2。报拆解时用编号，例如「B2 S3 K3 G4」。</div>
+  <div class="vs-switch">
+    <button class="vs-btn" id="v86" onclick="setVer('86')">86</button>
+    <button class="vs-btn active" id="v98" onclick="setVer('98')">98</button>
+    <button class="vs-btn" id="v06" onclick="setVer('06')">新世纪</button>
+  </div>
+  <div id="summary"></div>
+  <div id="grid"></div>
+</div>
+
+<script>window.WUBI_DATA = {};</script>
+<script src="data/root_98.js"></script>
+<script src="data/root_86.js"></script>
+<script src="data/root_06.js"></script>
+<script>
+let ver = '98';
+function setVer(v) {
+  ver = v;
+  document.querySelectorAll('.vs-btn').forEach(b => b.classList.toggle('active', b.id === 'v' + v));
+  render();
+}
+function render() {
+  const roots = window.WUBI_DATA['root_' + ver] || [];
+  const byKey = {};
+  roots.forEach(r => (byKey[r.a] || (byKey[r.a] = [])).push(r.v));
+  const order = 'abcdefghijklmnopqrstuvwxyz'.split('').filter(k => byKey[k]);
+  document.getElementById('summary').textContent = ver + '版 共 ' + roots.length + ' 个码元';
+  const cells = [];
+  for (const k of order) {
+    cells.push('<div class="key-head">' + k.toUpperCase() + ' 键</div><div class="key-grid">');
+    byKey[k].forEach((v, i) => {
+      cells.push('<div class="cell"><div class="glyph">' + v + '</div><div class="num">' +
+        k.toUpperCase() + (i + 1) + '</div></div>');
+    });
+    cells.push('</div>');
+  }
+  document.getElementById('grid').innerHTML = cells.join('');
+}
+render();
+</script>
+</body>
+</html>

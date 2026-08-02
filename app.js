@@ -1,7 +1,7 @@
 const MODES = [
-  { key: 'root', name: '码元练习', sub: '键名+码元', explain: false, root: true, data: window.WUBI_DATA['root'] },
-  { key: 'jm1', name: '一级简码', sub: '25字 · 单键', explain: false, data: window.WUBI_DATA['jm1'] },
-  { key: 'jm2', name: '二级简码', sub: '613字 · 两键', explain: true, data: window.WUBI_DATA['jm2'] },
+  { key: 'root', name: '码元练习', sub: '键名+码元', dataKey: 'root', explain: false, root: true, data: window.WUBI_DATA['root_98'] },
+  { key: 'jm1', name: '一级简码', sub: '单键', dataKey: 'jm1', explain: false, data: window.WUBI_DATA['jm1'] },
+  { key: 'jm2', name: '二级简码', sub: '两键', dataKey: 'jm2', explain: true, data: window.WUBI_DATA['jm2_98'] },
   { key: 'encode1', name: '常用前500', sub: '高频500字', explain: true, data: window.WUBI_DATA['encode1'] },
   { key: 'encode2', name: '常用中500', sub: '次频500字', explain: true, data: window.WUBI_DATA['encode2'] },
   { key: 'encode3', name: '常用后500', sub: '低频500字', explain: true, data: window.WUBI_DATA['encode3'] },
@@ -19,35 +19,95 @@ const REGIONS = {
 };
 const SAVE_KEY = 'wubi98_';
 
-// 从 spelling2.txt 转的字典（data/dict.js）：字 → {s 拆解, c 全码}
-function getSplit(v) {
-  const e = window.WUBI_DICT && window.WUBI_DICT[v];
-  return e && e.s ? Array.from(e.s) : [];
+// ---------- 五笔版本配置 ----------
+// 每个版本封装一份独立资源：dict 字典 / jm1 一级 / jm2 二级 / jm3 三级 / root 码元。
+// 切换版本即切换整套数据；后续补 root、jm3 等只需给对应版本填数据。
+const VERSIONS = {
+  '98': {
+    name: '98版',
+    dict: window.WUBI_DICT_98,
+    jm1: window.WUBI_DATA['jm1'],
+    jm2: window.WUBI_DATA['jm2_98'],
+    jm3: window.WUBI_DATA['jm3_98'],
+    root: window.WUBI_DATA['root_98'],
+  },
+  '86': {
+    name: '86版',
+    dict: window.WUBI_DICT_86,
+    jm1: window.WUBI_DATA['jm1'],
+    jm2: window.WUBI_DATA['jm2_86'],
+    jm3: window.WUBI_DATA['jm3_86'],
+    root: window.WUBI_DATA['root_86'],
+  },
+  '06': {
+    name: '新世纪',
+    dict: window.WUBI_DICT_06,
+    jm1: window.WUBI_DATA['jm1'],
+    jm2: window.WUBI_DATA['jm2_06'],
+    jm3: window.WUBI_DATA['jm3_06'],
+    root: window.WUBI_DATA['root_06'],
+  },
+};
+
+const VERSION_KEY = SAVE_KEY + 'version';
+let version = localStorage.getItem(VERSION_KEY) || '98';
+
+// 当前版本对象；未知 key 回退 98
+function cur() { return VERSIONS[version] || VERSIONS['98']; }
+
+// 为每个版本构建简码映射：字 -> 简码（反查提示 / 编码模式优先作答）
+function buildMaps() {
+  Object.keys(VERSIONS).forEach(k => {
+    const v = VERSIONS[k];
+    const maps = { jm1: {}, jm2: {}, jm3: {} };
+    (v.jm1 || []).forEach(c => maps.jm1[c.v] = c.a);
+    [...(v.jm2 || '')].forEach(ch => {
+      const c = (v.dict[ch] || {}).c;
+      if (c && !maps.jm2[ch]) maps.jm2[ch] = c.slice(0, 2);
+    });
+    [...(v.jm3 || '')].forEach(ch => {
+      const c = (v.dict[ch] || {}).c;
+      if (c && !maps.jm3[ch]) maps.jm3[ch] = c.slice(0, 3);
+    });
+    v.maps = maps;
+  });
 }
 
-// 查询某字的全码
-function getFull(v) {
-  return (window.WUBI_DICT && window.WUBI_DICT[v] && window.WUBI_DICT[v].c) || '';
+// 反查用的三版字典
+const LOOKUP_DICTS = Object.keys(VERSIONS).map(k => ({ key: k, name: VERSIONS[k].name, dict: VERSIONS[k].dict }));
+
+// 查询某字的拆解/全码（按当前版本字典）
+function getSplit(ch) {
+  const e = cur().dict[ch];
+  return e && e.s ? Array.from(e.s) : [];
+}
+function getFull(ch) {
+  return (cur().dict[ch] || {}).c || '';
 }
 
 let view = 'practice';
 
-// 简码映射：字 -> 一级/二级/三级简码（供反查显示）
-const JM1_MAP = {};
-const JM2_MAP = {};
-const JM3_MAP = {};
-function buildJmMaps() {
-  (window.WUBI_DATA['jm1'] || []).forEach(c => JM1_MAP[c.v] = c.a);
-  [...(window.WUBI_DATA['jm2'] || '')].forEach(v => { if (!JM2_MAP[v]) JM2_MAP[v] = getFull(v).slice(0, 2); });
-  [...(window.WUBI_DATA['jm3'] || '')].forEach(v => { if (!JM3_MAP[v]) JM3_MAP[v] = getFull(v).slice(0, 3); });
-}
-
-function jmCodes(ch) {
+// 简码展示：一级/二级/三级分别查指定版本映射（86/06 暂无三级则自动省略）
+function jmCodesFor(verKey, ch) {
+  const m = VERSIONS[verKey].maps;
   const out = [];
-  if (JM1_MAP[ch]) out.push(JM1_MAP[ch].toUpperCase());
-  if (JM2_MAP[ch]) out.push(JM2_MAP[ch].toUpperCase());
-  if (JM3_MAP[ch]) out.push(JM3_MAP[ch].toUpperCase());
+  if (m.jm1[ch]) out.push(m.jm1[ch].toUpperCase());
+  if (m.jm2[ch]) out.push(m.jm2[ch].toUpperCase());
+  if (m.jm3[ch]) out.push(m.jm3[ch].toUpperCase());
   return out.join(' · ');
+}
+function jmCodes(ch) { return jmCodesFor(version, ch); }
+
+// 切换五笔版本：更新答案/拆解来源并重开当前模式会话
+function setVersion(v) {
+  if (v === version) return;
+  version = v;
+  localStorage.setItem(VERSION_KEY, v);
+  DATA = modeData();
+  document.querySelectorAll('.version-switch .vs-btn').forEach(b => {
+    b.classList.toggle('active', b.id === 'v' + v);
+  });
+  startSession();
 }
 
 function switchView(v) {
@@ -72,24 +132,33 @@ function lookupChar() {
   const input = document.getElementById('lookupInput').value;
   const box = document.getElementById('lookupResult');
   if (!input) {
-    box.innerHTML = '<div class="lookup-hint">输入一个或多个汉字，实时反查编码与拆解</div>';
+    box.innerHTML = '<div class="lookup-hint">输入汉字，实时反查 86/98/新世纪 三版编码与拆解</div>';
     return;
   }
   let h = '';
   for (const ch of input) {
     if (/\s/.test(ch)) continue;
-    const full = getFull(ch);
-    const split = getSplit(ch);
-    if (!full && !split.length) {
-      h += '<div class="lookup-item"><div class="li-char">' + ch + '</div><div class="li-missing">未收录</div></div>';
-      continue;
+    let rows = '';
+    for (const d of LOOKUP_DICTS) {
+      const e = d.dict[ch];
+      const jm = jmCodesFor(d.key, ch);
+      rows += '<div class="li-row">' +
+        '<span class="li-ver v' + d.key + '">' + d.name + '</span>' +
+        (e
+          ? '<div class="li-body">' +
+            '<div class="li-line">' +
+            '<span class="li-code">' + e.c.toUpperCase() + '</span>' +
+            (jm ? '<span class="li-jm">' + jm + '</span>' : '') +
+            '</div>' +
+            '<div class="li-split">' + Array.from(e.s).map(x => '<span class="ls-glyph">' + x + '</span>').join('') + '</div>' +
+            '</div>'
+          : '<span class="li-missing">未收录</span>') +
+        '</div>';
     }
-    const jm = jmCodes(ch);
-    h += '<div class="lookup-item"><div class="li-char">' + ch + '</div>' +
-         '<div class="li-codes"><div class="li-code">' + full.toUpperCase() + '</div>' +
-         (jm ? '<div class="li-jm">' + jm + '</div>' : '') + '</div>' +
-         (split.length ? '<div class="li-split">' + split.map(x => '<span class="ls-glyph">' + x + '</span>').join('') + '</div>' : '') +
-         '</div>';
+    h += '<div class="lookup-item">' +
+      '<div class="li-char">' + ch + '</div>' +
+      '<div class="li-results">' + rows + '</div>' +
+      '</div>';
   }
   box.innerHTML = h;
 }
@@ -138,6 +207,18 @@ function startLevel() {
   list.forEach(item => ensureSchedule(typeof item === 'string' ? item : item.v));
 }
 
+// 各模式数据：带 dataKey 的模式（root/jm1/jm2/jm3）取当前版本数据，encode 系列固定
+function modeData() {
+  const m = MODES[modeIdx];
+  if (m.dataKey) return cur()[m.dataKey] || m.data;
+  return m.data;
+}
+
+// 当前模式的数据量（菜单/进度显示，随版本变化）
+function modeCount(m) {
+  return (m.dataKey ? (cur()[m.dataKey] || m.data) : m.data).length;
+}
+
 // 根据当前模式由全码推导答案（jm2=前2，jm3=前3，encode=一/二/三级简码优先）
 function getAnswer(v) {
   const key = MODES[modeIdx].key;
@@ -145,9 +226,10 @@ function getAnswer(v) {
   if (key === 'jm2') return full.slice(0, 2);
   if (key === 'jm3') return full.slice(0, 3);
   if (key.indexOf('encode') === 0) {
-    if (JM1_MAP[v]) return JM1_MAP[v];
-    if (JM2_MAP[v]) return JM2_MAP[v];
-    if (JM3_MAP[v]) return JM3_MAP[v];
+    const m = cur().maps;
+    if (m.jm1[v]) return m.jm1[v];
+    if (m.jm2[v]) return m.jm2[v];
+    if (m.jm3[v]) return m.jm3[v];
   }
   return full;
 }
@@ -177,7 +259,7 @@ function buildMenu() {
   const menu = document.getElementById('menu');
   let h = '';
   MODES.forEach((m, i) => {
-    h += '<div class="menu-item" onclick="switchMode(' + i + ')"><div>' + m.name + '</div><div class="sub">' + m.sub + ' · ' + m.data.length + '项</div></div>';
+    h += '<div class="menu-item" onclick="switchMode(' + i + ')"><div>' + m.name + '</div><div class="sub">' + m.sub + ' · ' + modeCount(m) + '项</div></div>';
   });
   h += '<div class="menu-divider"></div>';
   h += '<div class="menu-action" onclick="resetProgress()">重置当前进度</div>';
@@ -191,7 +273,7 @@ function toggleMenu() {
 function switchMode(newIdx) {
   if (newIdx === modeIdx) { toggleMenu(); return; }
   modeIdx = newIdx;
-  DATA = MODES[modeIdx].data;
+  DATA = modeData();
   toggleMenu();
   document.getElementById('menu').querySelectorAll('.menu-item').forEach((el, i) => {
     el.classList.toggle('active', i === modeIdx);
@@ -386,7 +468,7 @@ function advance() {
 // ---------- 信息 ----------
 function updateProgress() {
   const m = MODES[modeIdx];
-  const total = m.data.length;
+  const total = modeCount(m);
   const p = document.getElementById('progress');
   p.textContent = '剩余 ' + state.queue.length + ' · 已学 ' + state.seen + ' / ' + total;
 }
@@ -412,6 +494,9 @@ function endGame() {
 (function init() {
   buildMenu();
   document.getElementById('menu').querySelectorAll('.menu-item')[0].classList.add('active');
-  buildJmMaps();
+  buildMaps();
+  document.querySelectorAll('.version-switch .vs-btn').forEach(b => {
+    b.classList.toggle('active', b.id === 'v' + version);
+  });
   startSession();
 })();
