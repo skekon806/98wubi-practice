@@ -178,13 +178,16 @@ function shuffle(a) {
 }
 
 // ---------- 存档 ----------
+// 存档按「版本 + 模式」独立存储，切换版本互不影响
+function saveKey() { return SAVE_KEY + version + '_' + MODES[modeIdx].key; }
+
 function saveState() {
-  localStorage.setItem(SAVE_KEY + MODES[modeIdx].key, JSON.stringify(state));
+  localStorage.setItem(saveKey(), JSON.stringify(state));
 }
 
 function loadState() {
   try {
-    const raw = localStorage.getItem(SAVE_KEY + MODES[modeIdx].key);
+    const raw = localStorage.getItem(saveKey());
     if (!raw) return null;
     const s = JSON.parse(raw);
     if (!s || !s.queue || !s.cards) return null;
@@ -298,7 +301,7 @@ function startSession() {
 
 function resetProgress() {
   if (confirm('确定重置「' + MODES[modeIdx].name + '」的进度吗？')) {
-    localStorage.removeItem(SAVE_KEY + MODES[modeIdx].key);
+    localStorage.removeItem(saveKey());
     state = freshState();
     startLevel();
     showCurrent();
@@ -480,7 +483,7 @@ function updateStats() {
 }
 
 function endGame() {
-  localStorage.removeItem(SAVE_KEY + MODES[modeIdx].key);
+  localStorage.removeItem(saveKey());
   current = null;
   state.current = null;
   document.getElementById('charDisplay').innerHTML = '🎉 完成!';
