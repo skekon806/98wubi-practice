@@ -428,11 +428,11 @@ function checkAnswer() {
       state.current = null;
       isRetry = true;
     }
-    boxes.forEach((b, i) => {
-      if (b.value && b.value.toUpperCase() !== ans[i].toUpperCase()) b.className = 'code-box wrong';
-      else if (b.value && b.value.toUpperCase() === ans[i].toUpperCase()) b.className = 'code-box correct';
-      else b.className = 'code-box filled';
+    boxes.forEach((b) => {
+      b.value = '';
+      b.className = 'code-box' + (isRoot ? ' single' : '');
     });
+    if (boxes.length > 0) boxes[0].focus();
     const fb = document.getElementById('feedback');
     fb.className = 'feedback wrong';
     fb.style.display = 'block';
