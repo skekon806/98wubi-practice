@@ -51,15 +51,18 @@ function buildMaps() {
   });
 }
 
-// 某字在当前版本的全部简码（一/二/三级），无则返回空串
-function jmCodes(v) {
-  const maps = cur().maps || {};
+// 某字在指定版本的全部简码（一/二/三级），无则返回空串
+function jmCodesFor(verKey, v) {
+  const maps = VERSIONS[verKey].maps || {};
   const out = [];
   if (maps.jm1[v]) out.push(maps.jm1[v]);
   if (maps.jm2[v]) out.push(maps.jm2[v]);
   if (maps.jm3[v]) out.push(maps.jm3[v]);
   return out.join(' · ');
 }
+
+// 某字在当前版本的全部简码
+function jmCodes(v) { return jmCodesFor(version, v); }
 
 // 查询某字的拆解/全码（按当前版本字典）
 function getSplit(ch) {
@@ -115,12 +118,14 @@ function lookupChar() {
     let rows = '';
     for (const d of LOOKUP_DICTS) {
       const e = d.dict[ch];
+      const jm = jmCodesFor(d.key, ch);
       rows += '<div class="li-row">' +
         '<span class="li-ver v' + d.key + '">' + d.name + '</span>' +
         (e
           ? '<div class="li-body">' +
             '<div class="li-line">' +
             '<span class="li-code">' + e.c.toUpperCase() + '</span>' +
+            (jm ? '<span class="li-jm">' + jm + '</span>' : '') +
             '</div>' +
             '<div class="li-split">' + Array.from(e.s).map(x => '<span class="ls-glyph">' + x + '</span>').join('') + '</div>' +
             '</div>'
