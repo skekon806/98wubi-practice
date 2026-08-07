@@ -92,6 +92,11 @@ body {
 .code-inputs input.filled { border-color: #4f6cf7; background: #f5f7ff; }
 .code-inputs input.correct { border-color: #16a34a; background: #f0fdf4; }
 .code-inputs input.wrong { border-color: #dc2626; background: #fef2f2; }
+.code-inputs input.ime {
+  width: 240px; height: 64px; font-size: 36px;
+  font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+}
+.code-inputs input.ime.filled { border-color: #4f6cf7; background: #f5f7ff; }
 .feedback { margin-top: 16px; padding: 14px; border-radius: 10px; display: none; animation: fadeIn .2s; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 .feedback.wrong { display: block; background: #fef2f2; border: 1px solid #fca5a5; }
@@ -167,18 +172,14 @@ body {
 .li-body { flex: 1; min-width: 0; }
 .li-line { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
 .li-code {
-  font-size: 20px; font-family: "Consolas", monospace; color: #4f6cf7;
+  font-size: 24px; font-family: "Consolas", monospace; color: #4f6cf7;
   font-weight: bold; letter-spacing: 2px; flex-shrink: 0;
 }
 .li-jm {
-  font-family: "Consolas", monospace; font-size: 22px; font-weight: bold;
-  color: #b45309; letter-spacing: 2px; margin-top: 4px;
+  font-family: "Consolas", monospace; font-size: 24px; font-weight: bold;
+  color: #b45309; letter-spacing: 2px;
 }
 .fb-codes { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 6px; }
-.fb-codes .li-jm { margin-top: 0; }
-.li-line .li-jm {
-  font-size: 14px; letter-spacing: 1px; margin-top: 0;
-}
 .li-split { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-top: 1px; }
 .ls-glyph { font-family: htFont, "Microsoft YaHei", sans-serif; font-size: 24px; line-height: 1; }
 .li-missing { color: #999; font-size: 14px; }
@@ -205,6 +206,7 @@ body {
   .code-inputs { gap: 8px; margin: 14px 0; }
   .code-inputs input { width: 46px; height: 54px; font-size: 26px; }
   .code-inputs input.single { width: 60px; height: 60px; font-size: 30px; }
+  .code-inputs input.ime { width: 200px; height: 56px; font-size: 30px; }
   .feedback { margin-top: 12px; padding: 12px; }
   .feedback .key-hint { font-size: 24px; }
   .root-chars span { font-size: 40px; padding: 6px 9px; }
@@ -213,9 +215,8 @@ body {
   .vs-btn { padding: 6px 22px; }
   .lookup-item { padding: 8px 10px; gap: 10px; }
   .li-char { width: 50px; font-size: 32px; }
-  .li-code { font-size: 18px; }
-  .li-jm { font-size: 18px; }
-  .li-line .li-jm { font-size: 12px; }
+  .li-code { font-size: 20px; }
+  .li-jm { font-size: 20px; }
   .ls-glyph { font-size: 22px; }
 }
 </style>
