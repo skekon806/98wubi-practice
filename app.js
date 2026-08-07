@@ -331,14 +331,14 @@ function showCurrent(keep) {
 
   updateProgress();
   document.getElementById('hintText').textContent = current.fromReview
-    ? '复习 (' + state.cards[v].level + '/' + INTERVALS.length + ') · 输入' + (isRoot ? '键位' : '编码 ' + ans.length + '键')
-    : isRoot ? '输入对应的字母键' : '输入编码（' + ans.length + '个键）';
+    ? '复习 (' + state.cards[v].level + '/' + INTERVALS.length + ') · 输入' + (isRoot ? '键位' : '简码后按空格或全码')
+    : isRoot ? '输入对应的字母键' : '简码后按空格，或输入全码';
 
   const fb = document.getElementById('feedback');
   fb.className = 'feedback';
   fb.style.display = 'none';
 
-  buildInputs(ans.length, isRoot);
+  buildInputs(isRoot ? 1 : 4, isRoot);
   updateStats();
   saveState();
 }
@@ -363,6 +363,13 @@ function buildInputs(n, isRoot) {
       if (this.value && i === arr.length - 1) setTimeout(checkAnswer, 80);
     });
     box.addEventListener('keydown', function(e) {
+      if (e.key === ' ' || e.key === 'Spacebar') {
+        e.preventDefault();
+        let typed = '';
+        arr.forEach(b => typed += b.value);
+        if (typed.trim()) setTimeout(checkAnswer, 0);
+        return;
+      }
       if (e.key === 'Backspace' && !this.value && i > 0) {
         arr[i - 1].value = '';
         arr[i - 1].className = 'code-box' + (isRoot ? ' single' : '');
@@ -371,6 +378,17 @@ function buildInputs(n, isRoot) {
     });
   });
   if (boxes.length > 0) boxes[0].focus();
+}
+
+// 判断输入是否正确：支持全码或简码（一/二/三级）
+function isCorrectInput(v, typed) {
+  const full = (cur().dict[v] || {}).c || '';
+  if (full && typed === full.toUpperCase()) return true;
+  const maps = cur().maps;
+  if (typed.length === 1 && (maps.jm1[v] || '').toUpperCase() === typed) return true;
+  if (typed.length === 2 && (maps.jm2[v] || '').toUpperCase() === typed) return true;
+  if (typed.length === 3 && (maps.jm3[v] || '').toUpperCase() === typed) return true;
+  return false;
 }
 
 // ---------- 判题 ----------
@@ -386,7 +404,7 @@ function checkAnswer() {
   boxes.forEach(b => typed += b.value);
   typed = typed.toUpperCase();
 
-  if (typed === ans.toUpperCase()) {
+  if (isRoot ? typed === ans.toUpperCase() : isCorrectInput(v, typed)) {
     const st = ensureSchedule(v);
     if (!isRetry) {
       state.correct++;
@@ -455,7 +473,7 @@ function checkAnswer() {
           fh += '<div class="root-chars">' + parts.map(x => '<span>' + x + '</span>').join('') + '</div>';
         }
       }
-      fh += '<div style="color:#888;font-size:13px;margin-top:6px">照着上面输入正确编码</div>';
+      fh += '<div style="color:#888;font-size:13px;margin-top:6px">照着上面输入正确简码或全码</div>';
     }
     fb.innerHTML = fh;
     updateStats();
