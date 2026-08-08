@@ -317,9 +317,20 @@ function buildInput(isRoot) {
     inp.autocomplete = 'off';
     inp.autocapitalize = 'off';
     inp.spellcheck = false;
-    inp.addEventListener('input', function() {
+    // 输入法组合状态：打拼音时首项候选会实时嵌入输入框，组合期间不判定
+    let composing = false;
+    const judgeIfHan = () => {
+      if (/[^\x00-\x7F]/.test(inp.value)) setTimeout(checkAnswer, 80);
+    };
+    inp.addEventListener('compositionstart', () => { composing = true; });
+    inp.addEventListener('compositionend', () => {
+      composing = false;
+      setTimeout(judgeIfHan, 0);
+    });
+    inp.addEventListener('input', function(e) {
       this.className = 'code-box ime filled';
-      if (/[^\x00-\x7F]/.test(this.value)) setTimeout(checkAnswer, 80);
+      if (composing || (e && e.isComposing)) return;
+      judgeIfHan();
     });
     inp.addEventListener('keydown', onImeKeydown);
   }
@@ -330,6 +341,7 @@ function buildInput(isRoot) {
 // 输入法模式按键：空格/回车提交（空输入也判错，显示编码提示）
 function onImeKeydown(e) {
   if (e.key !== ' ' && e.key !== 'Enter') return;
+  if (e.isComposing) return; // 输入法组合中（选字上屏），不拦截
   e.preventDefault();
   checkAnswer();
 }
