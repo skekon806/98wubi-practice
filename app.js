@@ -470,4 +470,5 @@ function endGame() {
     b.classList.toggle('active', b.id === 'v' + version);
   });
   startSession();
+  switchView('lookup');
 })();
