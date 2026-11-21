@@ -105,39 +105,49 @@ function switchView(v) {
   }
 }
 
+function el(tag, cls, text) {
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (text != null) n.textContent = text;
+  return n;
+}
+
 function lookupChar() {
   const input = document.getElementById('lookupInput').value;
   const box = document.getElementById('lookupResult');
+  box.replaceChildren();
   if (!input) {
-    box.innerHTML = '<div class="lookup-hint">输入汉字，实时反查 86/98/新世纪 三版编码与拆解</div>';
+    box.appendChild(el('div', 'lookup-hint', '输入汉字，实时反查 86/98/新世纪 三版编码与拆解'));
     return;
   }
-  let h = '';
   for (const ch of input) {
     if (/\s/.test(ch)) continue;
-    let rows = '';
+    const item = el('div', 'lookup-item');
+    item.appendChild(el('div', 'li-char', ch));
+    const results = el('div', 'li-results');
     for (const d of LOOKUP_DICTS) {
       const e = d.dict[ch];
       const jm = jmCodesFor(d.key, ch);
-      rows += '<div class="li-row">' +
-        '<span class="li-ver v' + d.key + '">' + d.name + '</span>' +
-        (e
-          ? '<div class="li-body">' +
-            '<div class="li-line">' +
-            '<span class="li-code">' + e.c.toUpperCase() + '</span>' +
-            (jm ? '<span class="li-jm">' + jm + '</span>' : '') +
-            '</div>' +
-            '<div class="li-split">' + Array.from(e.s).map(x => '<span class="ls-glyph">' + x + '</span>').join('') + '</div>' +
-            '</div>'
-          : '<span class="li-missing">未收录</span>') +
-        '</div>';
+      const row = el('div', 'li-row');
+      row.appendChild(el('span', 'li-ver v' + d.key, d.name));
+      if (e) {
+        const body = el('div', 'li-body');
+        const line = el('div', 'li-line');
+        line.appendChild(el('span', 'li-code', e.c.toUpperCase()));
+        if (jm) line.appendChild(el('span', 'li-jm', jm));
+        body.appendChild(line);
+        const split = el('div', 'li-split');
+        for (const x of Array.from(e.s)) split.appendChild(el('span', 'ls-glyph', x));
+        body.appendChild(split);
+        row.appendChild(body);
+      } else {
+        row.appendChild(el('span', 'li-missing', '未收录'));
+      }
+      results.appendChild(row);
     }
-    h += '<div class="lookup-item">' +
-      '<div class="li-char">' + ch + '</div>' +
-      '<div class="li-results">' + rows + '</div>' +
-      '</div>';
+    item.appendChild(results);
+    box.appendChild(item);
   }
-  box.innerHTML = h;
 }
 
 let modeIdx = 0;
@@ -166,7 +176,15 @@ function loadState() {
     const raw = localStorage.getItem(saveKey());
     if (!raw) return null;
     const s = JSON.parse(raw);
-    if (!s || !s.queue || !s.cards) return null;
+    if (!s || !Array.isArray(s.queue) || !s.cards || typeof s.cards !== 'object') return null;
+    // 字段默认值，兼容旧存档
+    s.cards = s.cards || {};
+    s.pos = Number.isFinite(s.pos) ? s.pos : 0;
+    s.correct = Number.isFinite(s.correct) ? s.correct : 0;
+    s.wrong = Number.isFinite(s.wrong) ? s.wrong : 0;
+    s.seen = Number.isFinite(s.seen) ? s.seen : 0;
+    s.done = Number.isFinite(s.done) ? s.done : 0;
+    s.current = s.current || null;
     return s;
   } catch (e) { return null; }
 }
@@ -336,6 +354,7 @@ function buildInput(isRoot) {
   }
   container.appendChild(inp);
   inp.focus();
+  setTimeout(function() { if (document.activeElement !== inp) inp.focus(); }, 50);
 }
 
 // 输入法模式按键：空格/回车提交（空输入也判错，显示编码提示）
@@ -447,7 +466,7 @@ function updateProgress() {
 function updateStats() {
   document.getElementById('correctCount').textContent = state.correct;
   document.getElementById('wrongCount').textContent = state.wrong;
-  document.getElementById('reviewBadge').textContent = '复习中: ' + (state.seen - state.done);
+  document.getElementById('reviewBadge').textContent = '待复习: ' + (state.seen - state.done);
 }
 
 function endGame() {
@@ -465,6 +484,13 @@ function endGame() {
 (function init() {
   buildMaps();
   buildMenu();
+  // ESC 关闭菜单；反查视图下 Esc 也可切回练习
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      document.getElementById('menu').classList.remove('open');
+      if (view === 'lookup') switchView('practice');
+    }
+  });
   document.getElementById('menu').querySelectorAll('.menu-item')[0].classList.add('active');
   document.querySelectorAll('.version-switch .vs-btn').forEach(b => {
     b.classList.toggle('active', b.id === 'v' + version);
