@@ -140,6 +140,35 @@ body {
 }
 .lookup-input:focus { border-color: #4f6cf7; box-shadow: 0 0 0 3px rgba(79,108,247,.15); }
 .lookup-hint { color: #888; font-size: 14px; padding: 36px 0; }
+.lookup-tabs { display: flex; gap: 10px; margin-bottom: 12px; }
+.lookup-tabs .vs-btn { flex: 1; padding: 7px 12px; }
+.lookup-version {
+  display: flex; justify-content: center; align-items: center; gap: 8px;
+  font-size: 12px; color: #888; margin-bottom: 12px;
+}
+.lookup-version .vs-btn { padding: 4px 12px; font-size: 12px; }
+.lookup-note { font-size: 12px; color: #999; text-align: left; margin: -4px 0 12px; }
+.py-group { text-align: left; margin-bottom: 16px; }
+.py-group-title {
+  display: flex; align-items: baseline; gap: 8px;
+  font-size: 18px; font-weight: bold; color: #4f6cf7; margin-bottom: 8px;
+}
+.py-count { font-size: 12px; font-weight: normal; color: #999; }
+.py-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(68px, 1fr)); gap: 8px; }
+.py-char {
+  border: 1px solid #e2e5ea; border-radius: 10px; background: #fafbfc;
+  padding: 8px 4px; cursor: pointer; font-family: inherit;
+}
+.py-char:hover { border-color: #4f6cf7; background: #f5f7ff; }
+.py-glyph {
+  display: block; font-family: htFont, "Microsoft YaHei", sans-serif;
+  font-size: 34px; line-height: 1.2;
+}
+.py-code {
+  display: block; font-family: "Consolas", monospace;
+  font-size: 13px; color: #555; letter-spacing: 1px;
+}
+.py-code.missing { color: #bbb; }
 .lookup-item {
   display: flex;
   align-items: stretch;
@@ -219,6 +248,9 @@ body {
   .li-code { font-size: 20px; }
   .li-jm { font-size: 20px; }
   .ls-glyph { font-size: 22px; }
+  .py-grid { grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 6px; }
+  .py-glyph { font-size: 30px; }
+  .py-code { font-size: 12px; }
 }
 </style>
 </head>
@@ -251,16 +283,27 @@ body {
     </div>
     <div class="version-switch">
       <span class="vs-label">五笔版本</span>
-      <button class="vs-btn" id="v86" onclick="setVersion('86')">86</button>
-      <button class="vs-btn active" id="v98" onclick="setVersion('98')">98</button>
-      <button class="vs-btn" id="v06" onclick="setVersion('06')">新世纪</button>
+      <button class="vs-btn" data-version="86" onclick="setVersion('86')">86</button>
+      <button class="vs-btn active" data-version="98" onclick="setVersion('98')">98</button>
+      <button class="vs-btn" data-version="06" onclick="setVersion('06')">新世纪</button>
     </div>
   </div>
 
   <div class="lookup-panel" id="lookupPanel">
+    <div class="lookup-tabs">
+      <button class="vs-btn active" id="ltChar" onclick="switchLookupMode('char')">按汉字</button>
+      <button class="vs-btn" id="ltPinyin" onclick="switchLookupMode('pinyin')">按拼音</button>
+    </div>
+    <div class="lookup-version">
+      <span>编码版本</span>
+      <button class="vs-btn" data-version="86" onclick="setVersion('86')">86</button>
+      <button class="vs-btn active" data-version="98" onclick="setVersion('98')">98</button>
+      <button class="vs-btn" data-version="06" onclick="setVersion('06')">新世纪</button>
+    </div>
     <input class="lookup-input" id="lookupInput" type="text"
            placeholder="输入汉字，实时反查编码与拆解"
-           autocomplete="off" autocapitalize="off" spellcheck="false" oninput="lookupChar()">
+           autocomplete="off" autocapitalize="off" spellcheck="false" oninput="renderLookup()">
+    <div class="lookup-note" id="lookupNote"></div>
     <div class="lookup-result" id="lookupResult"></div>
   </div>
 </div>
@@ -269,6 +312,7 @@ body {
 <script src="data/dict_86.js"></script>
 <script src="data/dict_98.js"></script>
 <script src="data/dict_06.js"></script>
+<script src="data/pinyin.js"></script>
 <script src="data/encode1.js"></script>
 <script src="data/encode2.js"></script>
 <script src="data/encode3.js"></script>
@@ -282,6 +326,7 @@ body {
 <script src="data/root_98.js"></script>
 <script src="data/root_86.js"></script>
 <script src="data/root_06.js"></script>
+<script src="js/lookup.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

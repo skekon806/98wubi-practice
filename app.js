@@ -31,6 +31,8 @@ let version = localStorage.getItem(VERSION_KEY) || '98';
 function cur() { return VERSIONS[version] || VERSIONS['98']; }
 
 const LOOKUP_DICTS = Object.keys(VERSIONS).map(k => ({ key: k, name: VERSIONS[k].name, dict: VERSIONS[k].dict }));
+const LOOKUP_MODE_KEY = SAVE_KEY + 'lookupMode';
+let lookupMode = localStorage.getItem(LOOKUP_MODE_KEY) === 'pinyin' ? 'pinyin' : 'char';
 
 // ---------- 简码映射 ----------
 // 每版本构建 字 → 简码集合（一/二/三级），供反馈时显示
@@ -81,10 +83,15 @@ function setVersion(v) {
   version = v;
   localStorage.setItem(VERSION_KEY, v);
   DATA = modeData();
-  document.querySelectorAll('.version-switch .vs-btn').forEach(b => {
-    b.classList.toggle('active', b.id === 'v' + v);
-  });
+  updateVersionButtons();
+  if (view === 'lookup') renderLookup();
   startSession();
+}
+
+function updateVersionButtons() {
+  document.querySelectorAll('[data-version]').forEach(b => {
+    b.classList.toggle('active', b.dataset.version === version);
+  });
 }
 
 function switchView(v) {
@@ -99,54 +106,9 @@ function switchView(v) {
   document.getElementById('menu').classList.remove('open');
   if (lookup) {
     document.getElementById('lookupInput').focus();
-    lookupChar();
+    renderLookup();
   } else {
     showCurrent(true);
-  }
-}
-
-function el(tag, cls, text) {
-  const n = document.createElement(tag);
-  if (cls) n.className = cls;
-  if (text != null) n.textContent = text;
-  return n;
-}
-
-function lookupChar() {
-  const input = document.getElementById('lookupInput').value;
-  const box = document.getElementById('lookupResult');
-  box.replaceChildren();
-  if (!input) {
-    box.appendChild(el('div', 'lookup-hint', '输入汉字，实时反查 86/98/新世纪 三版编码与拆解'));
-    return;
-  }
-  for (const ch of input) {
-    if (/\s/.test(ch)) continue;
-    const item = el('div', 'lookup-item');
-    item.appendChild(el('div', 'li-char', ch));
-    const results = el('div', 'li-results');
-    for (const d of LOOKUP_DICTS) {
-      const e = d.dict[ch];
-      const jm = jmCodesFor(d.key, ch);
-      const row = el('div', 'li-row');
-      row.appendChild(el('span', 'li-ver v' + d.key, d.name));
-      if (e) {
-        const body = el('div', 'li-body');
-        const line = el('div', 'li-line');
-        line.appendChild(el('span', 'li-code', e.c.toUpperCase()));
-        if (jm) line.appendChild(el('span', 'li-jm', jm));
-        body.appendChild(line);
-        const split = el('div', 'li-split');
-        for (const x of Array.from(e.s)) split.appendChild(el('span', 'ls-glyph', x));
-        body.appendChild(split);
-        row.appendChild(body);
-      } else {
-        row.appendChild(el('span', 'li-missing', '未收录'));
-      }
-      results.appendChild(row);
-    }
-    item.appendChild(results);
-    box.appendChild(item);
   }
 }
 
@@ -492,9 +454,8 @@ function endGame() {
     }
   });
   document.getElementById('menu').querySelectorAll('.menu-item')[0].classList.add('active');
-  document.querySelectorAll('.version-switch .vs-btn').forEach(b => {
-    b.classList.toggle('active', b.id === 'v' + version);
-  });
+  updateVersionButtons();
   startSession();
   switchView('lookup');
+  switchLookupMode(lookupMode);
 })();
